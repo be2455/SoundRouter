@@ -76,6 +76,7 @@ System output                    [ MacBook Pro Speakers ▾ ]
 - **Green dot**: the app is currently producing audio.
 - **Number badge**: how many audio-producing processes the app has (see below).
 - **Gear, bottom right**: show/hide system processes.
+- **"Launch at login" checkbox** at the bottom: registers the app as a login item via `SMAppService`.
 
 The "System output" row at the top is the global default device. It only affects apps you have not configured individually.
 
@@ -180,9 +181,12 @@ Volume is a gain multiplier, and boosting past 1.0 pushes samples beyond ±1.0, 
 
 - **EQ and AudioUnit effect chains**: `RouteEngine.render` only does volume and balance. Effects would hook in just before writing the output buffer.
 - **Splitting one app across multiple output devices**: one route targets one device.
-- **Launch at login**: no `SMAppService` registration yet.
 - **AirPlay**: AirPlay targets do appear as Core Audio devices and will show up in the dropdown, but whether one can serve as an aggregate sub-device is untested — network clocking makes it doubtful.
 - Sample-rate differences are left to the aggregate's drift compensation (a 48 kHz tap into a 44.1 kHz output works in practice). If you hear artefacts or wrong pitch on some device, matching the rates rules this out.
+
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md). The short version: if a routed app goes silent, check the audio-capture permission before assuming you broke something.
 
 ## License
 

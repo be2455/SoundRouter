@@ -3,6 +3,7 @@ import SwiftUI
 
 struct RouterPanel: View {
     @EnvironmentObject private var manager: RouterManager
+    @StateObject private var loginItem = LoginItem()
 
     var body: some View {
         VStack(spacing: 0) {
@@ -47,6 +48,41 @@ struct RouterPanel: View {
     }
 
     private var footer: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Toggle(isOn: Binding(
+                get: { loginItem.state.isOn },
+                set: { _ in loginItem.toggle() }
+            )) {
+                Text("開機時自動啟動")
+                    .font(.caption)
+            }
+            .toggleStyle(.checkbox)
+
+            // 已註冊但使用者還沒在系統設定裡允許——不是錯誤，但也還沒生效。
+            if loginItem.state == .requiresApproval {
+                Button("需要在系統設定裡允許") { loginItem.openLoginItemsSettings() }
+                    .buttonStyle(.link)
+                    .font(.caption)
+            }
+
+            if let error = loginItem.lastError {
+                Text(error)
+                    .font(.caption)
+                    .foregroundStyle(.orange)
+                    .lineLimit(2)
+                    .help(error)
+            }
+
+            Divider()
+
+            controlRow
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+        .onAppear { loginItem.refresh() }
+    }
+
+    private var controlRow: some View {
         HStack {
             if let error = manager.lastError {
                 Text(error)
@@ -68,8 +104,6 @@ struct RouterPanel: View {
             Button("結束") { NSApplication.shared.terminate(nil) }
                 .buttonStyle(.borderless)
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 8)
     }
 }
 

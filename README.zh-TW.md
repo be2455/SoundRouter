@@ -76,6 +76,7 @@ Process tap 需要系統音訊擷取授權。**沒有拿到授權時 tap 不會�
 - **綠點**：該 App 正在出聲。
 - **數字徽章**：這個 App 底下有幾個發聲行程（見下節）。
 - **右下齒輪**：顯示／隱藏系統程序。
+- **最下方「開機時自動啟動」勾選框**：用 `SMAppService` 註冊登入項目。
 
 面板最上面的「系統輸出」是全域預設裝置，只影響沒有單獨設定的 App。
 
@@ -180,9 +181,12 @@ Tests/                     不依賴硬體的邏輯測試
 
 - **EQ 與 AudioUnit 效果鏈**：`RouteEngine.render` 目前只做音量與平衡。要加效果的話，掛在寫入 output buffer 之前。
 - **一個 App 同時分流到多個輸出裝置**：現在一條路由對一個裝置。
-- **開機自動啟動**：尚未加 `SMAppService` 的登入項目註冊。
 - **AirPlay**：AirPlay 目標確實會以 Core Audio 裝置出現、也會列進下拉選單，但它能不能當 aggregate 的 sub-device 尚未實測——網路時脈讓人存疑。
 - 取樣率差異交給 aggregate 的 drift compensation 處理（實測 48kHz tap → 44.1kHz 輸出正常）。若在某些裝置上聽到雜訊或音高異常，把兩邊取樣率調成一致可以排除這個變因。
+
+## 參與開發
+
+見 [CONTRIBUTING.zh-TW.md](CONTRIBUTING.zh-TW.md)。一句話版本：被路由的 App 沒聲音時，先確認音訊擷取授權，再懷疑自己改壞了什麼。
 
 ## 授權
 
