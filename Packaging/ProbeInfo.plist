@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CFBundleName</key><string>AudioRouterProbe</string>
+	<key>CFBundleIdentifier</key><string>com.soundrouter.probe</string>
+	<key>CFBundleExecutable</key><string>audiorouter</string>
+	<key>CFBundlePackageType</key><string>APPL</string>
+	<key>CFBundleShortVersionString</key><string>0.1.0</string>
+	<key>CFBundleVersion</key><string>1</string>
+	<key>LSUIElement</key><true/>
+	<key>NSAudioCaptureUsageDescription</key>
+	<string>AudioRouterProbe 需要擷取其他 App 的音訊，才能驗證路由是否正常運作。</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>AudioRouterProbe 需要音訊擷取權限。</string>
+</dict>
+</plist>

@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CFBundleName</key>
+	<string>SoundRouter</string>
+	<key>CFBundleDisplayName</key>
+	<string>SoundRouter</string>
+	<key>CFBundleIdentifier</key>
+	<string>com.soundrouter.app</string>
+	<key>CFBundleExecutable</key>
+	<string>SoundRouterApp</string>
+	<key>CFBundlePackageType</key>
+	<string>APPL</string>
+	<key>CFBundleShortVersionString</key>
+	<string>0.1.0</string>
+	<key>CFBundleVersion</key>
+	<string>1</string>
+	<key>LSMinimumSystemVersion</key>
+	<string>14.4</string>
+	<!-- 只在選單列出現，不進 Dock、不佔用 App 切換器。 -->
+	<key>LSUIElement</key>
+	<true/>
+	<!-- Core Audio process tap 需要這把鑰匙，否則系統連授權提示都不會跳，直接餵靜音。 -->
+	<key>NSAudioCaptureUsageDescription</key>
+	<string>SoundRouter 需要擷取其他 App 的音訊，才能把它們分別導向不同的輸出裝置並單獨調整音量。</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>SoundRouter 需要音訊擷取權限，才能重新導向各個 App 的聲音。</string>
+</dict>
+</plist>

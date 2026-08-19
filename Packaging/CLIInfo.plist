@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CFBundleName</key>
+	<string>audiorouter</string>
+	<key>CFBundleIdentifier</key>
+	<string>com.soundrouter.cli</string>
+	<key>CFBundleShortVersionString</key>
+	<string>0.1.0</string>
+	<key>CFBundleVersion</key>
+	<string>1</string>
+	<key>NSAudioCaptureUsageDescription</key>
+	<string>audiorouter 需要擷取其他 App 的音訊，才能把它們導向指定的輸出裝置。</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>audiorouter 需要音訊擷取權限，才能重新導向各個 App 的聲音。</string>
+</dict>
+</plist>

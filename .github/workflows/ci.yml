@@ -1,0 +1,18 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  build-and-test:
+    # process tap 需要真實音訊裝置與 TCC 授權，runner 兩者都沒有，
+    # 所以 CI 能做的就是擋住編譯錯誤，以及跑不依賴硬體的邏輯測試。
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build
+        run: swift build
+      - name: Test
+        run: swift test
