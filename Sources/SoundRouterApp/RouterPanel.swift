@@ -49,15 +49,6 @@ struct RouterPanel: View {
 
     private var footer: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Toggle(isOn: Binding(
-                get: { loginItem.state.isOn },
-                set: { _ in loginItem.toggle() }
-            )) {
-                Text("開機時自動啟動")
-                    .font(.caption)
-            }
-            .toggleStyle(.checkbox)
-
             // 已註冊但使用者還沒在系統設定裡允許——不是錯誤，但也還沒生效。
             if loginItem.state == .requiresApproval {
                 Button("需要在系統設定裡允許") { loginItem.openLoginItemsSettings() }
@@ -65,15 +56,14 @@ struct RouterPanel: View {
                     .font(.caption)
             }
 
-            if let error = loginItem.lastError {
+            // 只有真的有訊息時才佔一行，平常 footer 就是單純一排。
+            if let error = manager.lastError ?? loginItem.lastError {
                 Text(error)
                     .font(.caption)
-                    .foregroundStyle(.orange)
+                    .foregroundStyle(manager.lastError != nil ? .red : .orange)
                     .lineLimit(2)
                     .help(error)
             }
-
-            Divider()
 
             controlRow
         }
@@ -84,13 +74,15 @@ struct RouterPanel: View {
 
     private var controlRow: some View {
         HStack {
-            if let error = manager.lastError {
-                Text(error)
+            Toggle(isOn: Binding(
+                get: { loginItem.state.isOn },
+                set: { _ in loginItem.toggle() }
+            )) {
+                Text("開機時自動啟動")
                     .font(.caption)
-                    .foregroundStyle(.red)
-                    .lineLimit(2)
-                    .help(error)
             }
+            .toggleStyle(.checkbox)
+
             Spacer()
             Button {
                 manager.showsSystemProcesses.toggle()
