@@ -20,7 +20,8 @@ macOS 14.4 之後 Core Audio 開放了 **process tap**，因此不需要安裝�
 
 - **macOS 15 以上**（Core Audio 的 process tap 從 14.2 開始提供，但本專案的部署目標設在 15）
 - Xcode 或 Command Line Tools（Swift 6）
-- 實測環境為 Apple Silicon + macOS 26，Intel 機器尚未驗證
+- `build-app.sh` 產出 universal binary（arm64 + x86_64）。實測環境是 Apple Silicon + macOS 26，
+  Intel 建得起來但沒有實機跑過
 
 ## 建置
 

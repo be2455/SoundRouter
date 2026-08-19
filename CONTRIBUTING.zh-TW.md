@@ -30,6 +30,9 @@ swift test           # 只測不依賴硬體的邏輯
 
 需要 macOS 15 以上與 Swift 6。零外部相依，離線可建置。
 
+`swift build` 只編譯你自己的架構，開發時用這個比較快；`build-app.sh` 會建 universal
+（arm64 + x86_64），時間大約是兩倍。
+
 ## 除錯
 
 CLI 是看清楚音訊層到底在做什麼的最快方式。它需要 bundle 身分才拿得到授權，所以要跑包過的版本：

@@ -30,6 +30,9 @@ swift test           # hardware-independent logic only
 
 Requires macOS 15+ and Swift 6. No external dependencies — it builds offline.
 
+`swift build` compiles for your own architecture, which is what you want while iterating.
+`build-app.sh` builds universal (arm64 + x86_64), so it takes roughly twice as long.
+
 ## Debugging
 
 The CLI is the fastest way to see what the audio layer is actually doing. Because it needs bundle identity for the permission, run the bundled copy:

@@ -8,10 +8,14 @@ cd "$(dirname "$0")/.."
 CONFIG="${1:-release}"
 APP="build/SoundRouter.app"
 
-swift build -c "$CONFIG" --product SoundRouterApp
-swift build -c "$CONFIG" --product audiorouter
+# 建成 universal binary。開發時只跑自己的架構比較快，但這支腳本產出的是
+# 要拿來用（或發布）的 .app，Intel 機器也該跑得起來。
+ARCHS=(--arch arm64 --arch x86_64)
 
-BIN_DIR="$(swift build -c "$CONFIG" --show-bin-path)"
+swift build -c "$CONFIG" "${ARCHS[@]}" --product SoundRouterApp
+swift build -c "$CONFIG" "${ARCHS[@]}" --product audiorouter
+
+BIN_DIR="$(swift build -c "$CONFIG" "${ARCHS[@]}" --show-bin-path)"
 
 rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"

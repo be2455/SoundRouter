@@ -10,7 +10,8 @@ A per-app audio router for macOS: send individual apps to different output devic
 
 - **macOS 15 or later** (Core Audio process taps exist since 14.2, but this project targets 15)
 - Xcode or the Command Line Tools (Swift 6)
-- Developed and tested on Apple Silicon running macOS 26. Intel has not been verified.
+- `build-app.sh` produces a universal binary (arm64 + x86_64). Developed and tested on
+  Apple Silicon running macOS 26 — Intel builds, but has not been run there.
 
 ## How it works
 
