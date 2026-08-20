@@ -246,7 +246,7 @@ public final class RouteEngine {
         guard tapFormat.isFloat32, outputFormat.isFloat32 else {
             throw CoreAudioError(
                 status: kAudioHardwareUnsupportedOperationError,
-                operation: "只支援 32-bit float 串流（tap: \(tapFormat.debugSummary)、輸出: \(outputFormat.debugSummary)）"
+                operation: "檢查串流格式（只支援 32-bit float；tap: \(tapFormat.debugSummary)、輸出: \(outputFormat.debugSummary)）"
             )
         }
 
@@ -288,7 +288,7 @@ public final class RouteEngine {
         guard let first = streams.first else {
             throw CoreAudioError(
                 status: kAudioHardwareUnsupportedOperationError,
-                operation: "聚合裝置沒有可用的輸出 stream"
+                operation: "取得聚合裝置的輸出 stream"
             )
         }
         return try first.read(kAudioStreamPropertyVirtualFormat, label: "讀取輸出串流格式")

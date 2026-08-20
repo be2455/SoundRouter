@@ -65,6 +65,18 @@ struct RouterPanel: View {
                     .help(error)
             }
 
+            if let notice = manager.lastNotice {
+                HStack(spacing: 4) {
+                    Text(notice)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(2)
+                    Button("知道了") { manager.lastNotice = nil }
+                        .buttonStyle(.link)
+                        .font(.caption)
+                }
+            }
+
             controlRow
         }
         .padding(.horizontal, 12)
@@ -176,11 +188,17 @@ private struct AppRow: View {
                             .background(.quaternary, in: Capsule())
                     }
                     Spacer()
-                    if app.error != nil {
+                    if let error = app.error {
                         Image(systemName: "exclamationmark.triangle.fill")
-                            .foregroundStyle(.orange)
+                            .foregroundStyle(.red)
                             .font(.caption)
-                            .help(app.error ?? "")
+                            .help(error)
+                    } else if app.isStarting {
+                        // 建立引擎要跟 coreaudiod 溝通，可能要一會兒。
+                        ProgressView()
+                            .controlSize(.small)
+                            .scaleEffect(0.6)
+                            .frame(width: 12, height: 12)
                     }
                     Menu {
                         Button {

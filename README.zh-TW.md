@@ -176,6 +176,8 @@ Tests/                     不依賴硬體的邏輯測試
 
 **`ScrollView` 在 `MenuBarExtra` 裡沒有固有高度。** 視窗依內容決定大小，而 `ScrollView` 的理想高度是 0：只給 `maxHeight` 會被壓成 0（清單整塊消失），只給 `minHeight` 變成固定高度（清單被攔腰截斷），用 `GeometryReader` 量內容高度在這個環境裡量到 0（又消失）。最後改成不量測，用「估算列高 × 列數」判斷放不放得下，放得下就完全不包 `ScrollView`（見 `FittingList`）。
 
+**Core Audio 的建置呼叫可能無限期阻塞，絕對不要放在主執行緒。** `AudioDeviceCreateIOProcIDWithBlock` 會跟 `coreaudiod` 做同步 IPC，USB 裝置正在重新列舉時那個呼叫可能就是不返回。在主執行緒上呼叫會讓整個 UI 凍住、連選單列面板都打不開，只能強制結束。所以引擎的啟動改在背景執行緒進行，完成後才回到主執行緒更新狀態。
+
 **HAL 從來不會通知 `kAudioProcessPropertyIsRunningOutput`。** 對它註冊監聽器會回報成功，然後永遠不觸發。用 wildcard 監聽器才看得到 macOS 只針對 `IsRunning` 與 `Devices` 送通知。改掛 `IsRunning`，收到後再重讀 `IsRunningOutput` 取得實際狀態。
 
 ## 目前未涵蓋的部分

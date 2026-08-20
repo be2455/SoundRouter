@@ -176,6 +176,8 @@ Volume is a gain multiplier, and boosting past 1.0 pushes samples beyond ±1.0, 
 
 **`ScrollView` has no intrinsic height inside `MenuBarExtra`.** The window sizes itself to its content, and a ScrollView's ideal height is 0: `maxHeight` alone collapses it to nothing, `minHeight` alone pins it and truncates the list, and measuring the content with `GeometryReader` reports 0 in this environment. The working approach is not to measure at all — estimate row height times row count, and skip the ScrollView entirely when everything fits (see `FittingList`).
 
+**Core Audio setup calls can block indefinitely — never make them on the main thread.** `AudioDeviceCreateIOProcIDWithBlock` does synchronous IPC to `coreaudiod`, and while a USB device is re-enumerating that call can simply not return. Called from the main thread it freezes the entire UI, including the menu bar panel, leaving force-quit as the only way out. Engine startup therefore runs on a background task and reports back to the main actor.
+
 **The HAL never notifies `kAudioProcessPropertyIsRunningOutput`.** Registering a listener on it succeeds and then never fires. A wildcard listener reveals that macOS only sends notifications for `IsRunning` and `Devices`. Listen on `IsRunning`, then re-read `IsRunningOutput` for the actual state.
 
 ## Not covered

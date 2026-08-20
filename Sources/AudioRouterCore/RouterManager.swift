@@ -42,6 +42,8 @@ public struct RoutedApp: Identifiable, Hashable, Sendable {
     public let isActive: Bool
     /// 建立失敗時的訊息。
     public let error: String?
+    /// 引擎正在背景建立中。
+    public let isStarting: Bool
 
     public var id: String { key }
     public var name: String { group?.name ?? settings.displayName }
@@ -62,6 +64,8 @@ public final class RouterManager: ObservableObject {
     @Published public private(set) var defaultOutput: AudioDevice?
     @Published public private(set) var defaultInput: AudioDevice?
     @Published public var lastError: String?
+    /// 非錯誤的提示，例如某個 App 的輸出裝置消失而被改回跟隨系統。
+    @Published public var lastNotice: String?
 
     /// 是否把系統守護程序（CoreSpeech、audiomxd…）也列出來。
     /// 預設關閉：機器上通常有三十幾個這種行程，全開會把真正的 App 淹掉。
@@ -79,6 +83,11 @@ public final class RouterManager: ObservableObject {
     private var engineErrors: [String: String] = [:]
     /// 每個引擎目前實際綁定的輸出裝置與行程，用來判斷是否需要重建。
     private var engineTargets: [String: (deviceUID: String, processIDs: [AudioObjectID])] = [:]
+    /// 建立失敗過的組合。同樣的組合不再重試——否則每次 refresh 都會再失敗一次，
+    /// 錯誤訊息一直洗版，而且完全沒有好轉的可能。裝置或行程一變就會自然重試。
+    private var failedTargets: [String: (deviceUID: String, processIDs: [AudioObjectID])] = [:]
+    /// 正在背景建立的路由。建立中不重複發動，否則同一條路由會被啟動很多次。
+    private var pendingStarts: Set<String> = []
     /// 最近一次掃描到的播放源。每輪 refresh 算一次，避免重複查詢 Core Audio。
     private var currentGroups: [AudioProcessGroup] = []
 
@@ -185,6 +194,7 @@ public final class RouterManager: ObservableObject {
         defaultOutput = AudioDevices.defaultOutput()
         defaultInput = AudioDevices.defaultInput()
         currentGroups = AudioProcesses.groups()
+        dropMissingOutputDevices()
         reconcile()
         rebuildSnapshot()
         updatePlaybackObservers()
@@ -230,6 +240,21 @@ public final class RouterManager: ObservableObject {
             lines.append("  \(device.name)  out\(device.outputChannels) in\(device.inputChannels)  \(device.uid)")
         }
         lines.append("")
+        lines.append("— 路由狀態 —")
+        if apps.allSatisfy({ $0.settings.isPassthrough }) {
+            lines.append("  （沒有任何自訂路由）")
+        }
+        for app in apps where !app.settings.isPassthrough {
+            var parts: [String] = []
+            parts.append(app.settings.outputDeviceUID ?? "跟隨系統")
+            parts.append("音量 \(Int(app.settings.volume * 100))%")
+            if app.settings.muted { parts.append("靜音") }
+            parts.append(app.isActive ? "引擎執行中" : "引擎未執行")
+            lines.append("  \(app.name)：\(parts.joined(separator: "、"))")
+            if let error = app.error { lines.append("      錯誤：\(error)") }
+            if app.isStarting { lines.append("      （建立中）") }
+        }
+        lines.append("")
         lines.append("— 播放源 —")
         for group in currentGroups {
             lines.append("  \(group.name)  行程\(group.processes.count)  "
@@ -255,11 +280,36 @@ public final class RouterManager: ObservableObject {
 
         for (key, setting) in settings {
             guard let group = groupsByKey[key], shouldRunEngine(key: key, group: group) else { continue }
-            guard let deviceUID = setting.outputDeviceUID ?? defaultOutput?.uid else { continue }
+
+            // 使用者指定的裝置可能已經拔掉、關機或斷線。拿一個不存在的 UID 去建
+            // aggregate 一定失敗，所以這裡先確認，不在就暫時退回系統輸出。
+            // 設定本身保留不動——裝置接回來時會自動恢復原本的路由。
+            let requestedUID = setting.outputDeviceUID
+            let requestedIsAvailable = requestedUID.map { uid in
+                outputDevices.contains { $0.uid == uid }
+            } ?? true
+
+            // 裝置不在線上時，這條路由等同於「跟隨系統」。若音量、靜音、平衡
+            // 也都還是預設值，建 tap 就完全沒有作用，只是多一條會出錯的路徑——
+            // 直接讓音訊走原本的路。設定本身留著，裝置接回來就恢復。
+            var effective = setting
+            if !requestedIsAvailable { effective.outputDeviceUID = nil }
+            guard !effective.isPassthrough else {
+                teardownEngine(forKey: key)
+                continue
+            }
+
+            guard let deviceUID = effective.outputDeviceUID ?? defaultOutput?.uid else { continue }
 
             // 一組裡的所有行程共用一條路由，helper 發出的聲音才抓得到。
             let processIDs = group.processObjectIDs
             let target = engineTargets[key]
+
+            // 這個組合先前失敗過就不要再試，等條件變了再說。
+            if let failed = failedTargets[key],
+               failed.deviceUID == deviceUID, failed.processIDs == processIDs {
+                continue
+            }
 
             if let engine = engines[key], target?.deviceUID == deviceUID, target?.processIDs == processIDs {
                 // 已在跑且目標沒變，只要同步即時參數即可。
@@ -268,6 +318,9 @@ public final class RouterManager: ObservableObject {
                 engine.balance = setting.balance
                 continue
             }
+
+            // 已經有一個在背景建立中就不要再發動。
+            guard !pendingStarts.contains(key) else { continue }
 
             teardownEngine(forKey: key)
 
@@ -280,16 +333,65 @@ public final class RouterManager: ObservableObject {
             engine.isMuted = setting.muted
             engine.balance = setting.balance
 
-            do {
-                try engine.start()
-                engines[key] = engine
-                engineTargets[key] = (deviceUID, processIDs)
-                engineErrors[key] = nil
-            } catch {
-                engineErrors[key] = "\(error)"
-                lastError = "\(setting.displayName.isEmpty ? key : setting.displayName)：\(error)"
+            // RouteEngine.start() 會跟 coreaudiod 做同步 IPC，而那個呼叫可能長時間
+            // 不返回（裝置正在重新列舉、或 coreaudiod 忙碌時都遇過）。在主執行緒上
+            // 直接呼叫會讓整個 UI 凍住、連選單都打不開，所以丟到背景執行緒。
+            pendingStarts.insert(key)
+            let displayName = setting.displayName.isEmpty ? key : setting.displayName
+            Task.detached(priority: .userInitiated) { [weak self] in
+                do {
+                    try engine.start()
+                    await self?.engineDidStart(
+                        key: key, engine: engine, deviceUID: deviceUID, processIDs: processIDs
+                    )
+                } catch {
+                    await self?.engineDidFail(
+                        key: key, deviceUID: deviceUID, processIDs: processIDs,
+                        displayName: displayName, message: "\(error)"
+                    )
+                }
             }
         }
+    }
+
+    private func engineDidStart(
+        key: String,
+        engine: RouteEngine,
+        deviceUID: String,
+        processIDs: [AudioObjectID]
+    ) {
+        pendingStarts.remove(key)
+
+        // 建立期間設定可能已經改過。若期間已經有別的引擎接手，這個就沒用了。
+        guard engines[key] == nil else {
+            engine.stop()
+            rebuildSnapshot()
+            return
+        }
+
+        engines[key] = engine
+        engineTargets[key] = (deviceUID, processIDs)
+        engineErrors[key] = nil
+        failedTargets.removeValue(forKey: key)
+        // 目標若在這段期間變了，下一輪 reconcile 會自然把它換掉。
+        reconcile()
+        rebuildSnapshot()
+        writeDiagnosticSnapshot()
+    }
+
+    private func engineDidFail(
+        key: String,
+        deviceUID: String,
+        processIDs: [AudioObjectID],
+        displayName: String,
+        message: String
+    ) {
+        pendingStarts.remove(key)
+        engineErrors[key] = message
+        failedTargets[key] = (deviceUID, processIDs)
+        lastError = "\(displayName)：\(message)"
+        rebuildSnapshot()
+        writeDiagnosticSnapshot()
     }
 
     private func shouldRunEngine(key: String, group: AudioProcessGroup?) -> Bool {
@@ -301,6 +403,24 @@ public final class RouterManager: ObservableObject {
         engines[key]?.stop()
         engines.removeValue(forKey: key)
         engineTargets.removeValue(forKey: key)
+    }
+
+    /// 指定的輸出裝置不在了就把設定改回「跟隨系統」。
+    ///
+    /// 不保留失效的 UID：留著會讓 UI 顯示一個選不到的裝置，而且裝置回來時
+    /// 又會無預警地把音訊搬走。改回跟隨系統的結果比較好預期。
+    /// 代價是螢幕睡眠導致 HDMI 音訊暫時消失時，設定也會被清掉。
+    private func dropMissingOutputDevices() {
+        var resetNames: [String] = []
+        for (key, setting) in settings {
+            guard let uid = setting.outputDeviceUID,
+                  !outputDevices.contains(where: { $0.uid == uid }) else { continue }
+            settings[key]?.outputDeviceUID = nil
+            resetNames.append(setting.displayName.isEmpty ? key : setting.displayName)
+        }
+        guard !resetNames.isEmpty else { return }
+        saveSettings()
+        lastNotice = "\(resetNames.joined(separator: "、"))：原本指定的輸出裝置已不存在，已改為跟隨系統"
     }
 
     private func rebuildSnapshot() {
@@ -320,7 +440,8 @@ public final class RouterManager: ObservableObject {
                 group: group,
                 settings: setting ?? RouteSettings(displayName: group.name),
                 isActive: engines[group.key]?.isRunning ?? false,
-                error: engineErrors[group.key]
+                error: engineErrors[group.key],
+                isStarting: pendingStarts.contains(group.key)
             ))
         }
 
@@ -331,7 +452,8 @@ public final class RouterManager: ObservableObject {
                 group: nil,
                 settings: setting,
                 isActive: false,
-                error: engineErrors[key]
+                error: engineErrors[key],
+                isStarting: pendingStarts.contains(key)
             ))
         }
 
