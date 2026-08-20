@@ -86,5 +86,18 @@ Match the surrounding code. A few conventions that matter here:
 - EQ / AudioUnit effect chains — the hook point is in `RouteEngine.render`, just before writing the output buffer.
 - Splitting one app across several output devices.
 - AirPlay: targets appear as Core Audio devices, but whether one can serve as an aggregate sub-device is untested.
-- Localization — every UI string is hard-coded in Traditional Chinese.
+- Finish localization — the menu bar UI is done, but Core Audio error messages, the CLI and the diagnostic file are still Traditional Chinese only.
 - Intel Macs have not been verified at all.
+
+## Adding a language
+
+Strings live in `Sources/SoundRouterApp/Resources/<lang>.lproj/Localizable.strings`. To add one:
+
+1. Copy `en.lproj/Localizable.strings` to a new `<lang>.lproj` directory and translate the values, keeping the keys unchanged.
+2. Add the language code to `CFBundleLocalizations` in `Packaging/Info.plist`. **This step is easy to miss and fails silently** — without it macOS treats the app as single-language and always falls back to the development region, no matter what the user's system language is.
+
+Three things worth knowing:
+
+- Always fetch strings through `L("key")`. SwiftPM puts resources in `Bundle.module`, but SwiftUI's `Text("…")` looks in the main bundle, so a bare `Text("some.key")` renders the key itself rather than the translation.
+- A key that exists in code but not in the strings file also renders as the raw key, with no error. Check that every key appears in every language file.
+- `build-app.sh` copies the generated resource bundle into `Contents/Resources`. A hand-assembled `.app` that only contains the executable has no translations at all.

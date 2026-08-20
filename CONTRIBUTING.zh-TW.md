@@ -86,5 +86,18 @@ CI 會在 macOS runner 上跑 `swift build` 與 `swift test`，無法驗證任�
 - EQ／AudioUnit 效果鏈——掛點在 `RouteEngine.render` 寫入 output buffer 之前。
 - 一個 App 同時分流到多個輸出裝置。
 - AirPlay：AirPlay 目標會以 Core Audio 裝置出現，但它能不能當 aggregate 的 sub-device 尚未實測。
-- 在地化——所有介面字串都寫死繁體中文。
+- 把在地化做完——選單列介面已完成，但 Core Audio 錯誤訊息、CLI 與診斷檔仍然只有繁體中文。
 - Intel Mac 完全沒有驗證過。
+
+## 新增語言
+
+字串放在 `Sources/SoundRouterApp/Resources/<語言>.lproj/Localizable.strings`。要新增一種語言：
+
+1. 把 `en.lproj/Localizable.strings` 複製到新的 `<語言>.lproj` 目錄，翻譯內容、保留 key 不變。
+2. 把語言代碼加進 `Packaging/Info.plist` 的 `CFBundleLocalizations`。**這一步最容易漏掉，而且漏了不會報錯**——沒有它 macOS 會把 App 當成單一語言，不管使用者系統語言是什麼都退回開發語言。
+
+三件值得知道的事：
+
+- 取字串一律用 `L("key")`。SwiftPM 的資源在 `Bundle.module`，而 SwiftUI 的 `Text("…")` 查的是 main bundle，直接寫 `Text("some.key")` 會原封不動顯示 key。
+- 程式碼用到但字串檔沒有的 key 同樣會顯示成 key 本身，而且不會有任何錯誤。請確認每個 key 在每個語言檔裡都存在。
+- `build-app.sh` 會把產生出來的資源 bundle 複製進 `Contents/Resources`。只複製執行檔的手工 .app 完全不會有翻譯。

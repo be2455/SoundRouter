@@ -1,0 +1,20 @@
+/* 系統輸出區 */
+"systemOutput.title" = "系統輸出";
+"device.none" = "（無）";
+
+/* 每一列 */
+"route.followSystem" = "跟隨系統";
+"device.removed" = "（裝置已移除）";
+"list.empty" = "找不到任何播放源";
+"row.notRunning" = "未執行";
+"row.playing" = "正在播放";
+"row.helperProcesses" = "這個 App 有 %d 個發聲行程，會一起套用設定";
+"route.reset" = "重設這個 App";
+"route.forget" = "移除這筆設定";
+
+/* footer */
+"loginItem.launchAtLogin" = "開機時自動啟動";
+"loginItem.needsApproval" = "需要在系統設定裡允許";
+"loginItem.failed" = "設定開機啟動失敗：%@";
+"systemProcesses.toggleHelp" = "顯示／隱藏系統程序（CoreSpeech、audiomxd 之類的背景服務）";
+"app.quit" = "結束";

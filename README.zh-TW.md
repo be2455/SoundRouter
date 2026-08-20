@@ -185,7 +185,7 @@ Tests/                     不依賴硬體的邏輯測試
 
 ## 目前未涵蓋的部分
 
-- **在地化**：所有介面字串都寫死繁體中文。把它們抽到 string catalog 是個適合入門的貢獻。
+- **在地化只做了一半**：選單列介面已在地化（英文與繁體中文，跟隨系統語言），但 footer 顯示的 Core Audio 錯誤訊息、CLI 的所有輸出、以及診斷檔仍然只有繁體中文。
 - **EQ 與 AudioUnit 效果鏈**：`RouteEngine.render` 目前只做音量與平衡。要加效果的話，掛在寫入 output buffer 之前。
 - **一個 App 同時分流到多個輸出裝置**：現在一條路由對一個裝置。
 - **AirPlay**：AirPlay 目標確實會以 Core Audio 裝置出現、也會列進下拉選單，但它能不能當 aggregate 的 sub-device 尚未實測——網路時脈讓人存疑。

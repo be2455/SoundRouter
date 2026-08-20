@@ -64,7 +64,7 @@ Click the menu bar icon:
 
 <img src="docs/screenshot.png" width="440" alt="SoundRouter panel showing the system output device and three apps, each with its own output device and volume">
 
-> The interface is currently Traditional Chinese only — the strings are hard-coded and there is no localization yet. See [Not covered](#not-covered).
+> The screenshot is in Traditional Chinese; the interface follows your system language and ships with English too.
 
 - **Output device**: the dropdown on the right of each row. "Follow system" means the app is left alone.
 - **Volume**: −/+ in 5% steps, capped at 100%. There is deliberately no gain boost — see [Why 100% is the ceiling](#why-100-is-the-ceiling).
@@ -187,7 +187,7 @@ Volume is a gain multiplier, and boosting past 1.0 pushes samples beyond ±1.0, 
 
 ## Not covered
 
-- **Localization**: every UI string is hard-coded in Traditional Chinese. Pulling them into a string catalog would be a good first contribution.
+- **Localization is only partial**: the menu bar interface is localized (English and Traditional Chinese), but Core Audio error messages shown in the footer, all CLI output, and the diagnostic file are still Traditional Chinese only.
 - **EQ and AudioUnit effect chains**: `RouteEngine.render` only does volume and balance. Effects would hook in just before writing the output buffer.
 - **Splitting one app across multiple output devices**: one route targets one device.
 - **AirPlay**: AirPlay targets do appear as Core Audio devices and will show up in the dropdown, but whether one can serve as an aggregate sub-device is untested — network clocking makes it doubtful.

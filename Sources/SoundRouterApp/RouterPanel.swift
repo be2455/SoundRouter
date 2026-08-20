@@ -23,7 +23,7 @@ struct RouterPanel: View {
                     Image(systemName: "speaker.slash")
                         .font(.title2)
                         .foregroundStyle(.tertiary)
-                    Text("找不到任何播放源")
+                    Text(L("list.empty"))
                         .font(.callout)
                         .foregroundStyle(.secondary)
                 }
@@ -51,7 +51,7 @@ struct RouterPanel: View {
         VStack(alignment: .leading, spacing: 6) {
             // 已註冊但使用者還沒在系統設定裡允許——不是錯誤，但也還沒生效。
             if loginItem.state == .requiresApproval {
-                Button("需要在系統設定裡允許") { loginItem.openLoginItemsSettings() }
+                Button(L("loginItem.needsApproval")) { loginItem.openLoginItemsSettings() }
                     .buttonStyle(.link)
                     .font(.caption)
             }
@@ -78,7 +78,7 @@ struct RouterPanel: View {
                 get: { loginItem.state.isOn },
                 set: { _ in loginItem.toggle() }
             )) {
-                Text("開機時自動啟動")
+                Text(L("loginItem.launchAtLogin"))
                     .font(.caption)
             }
             .toggleStyle(.checkbox)
@@ -91,9 +91,9 @@ struct RouterPanel: View {
             }
             .buttonStyle(.borderless)
             .foregroundStyle(manager.showsSystemProcesses ? Color.accentColor : Color.secondary)
-            .help("顯示／隱藏系統程序（CoreSpeech、audiomxd 之類的背景服務）")
+            .help(L("systemProcesses.toggleHelp"))
 
-            Button("結束") { NSApplication.shared.terminate(nil) }
+            Button(L("app.quit")) { NSApplication.shared.terminate(nil) }
                 .buttonStyle(.borderless)
         }
     }
@@ -106,7 +106,7 @@ private struct SystemOutputSection: View {
 
     var body: some View {
         HStack(spacing: 8) {
-            Text("系統輸出")
+            Text(L("systemOutput.title"))
                 .font(.caption.weight(.semibold))
                 .foregroundStyle(.secondary)
 
@@ -125,7 +125,7 @@ private struct SystemOutputSection: View {
                     }
                 }
             } label: {
-                Text(manager.defaultOutput?.name ?? "（無）")
+                Text(manager.defaultOutput?.name ?? L("device.none"))
             }
             .controlSize(.small)
             .fixedSize()
@@ -141,8 +141,8 @@ private struct AppRow: View {
     @EnvironmentObject private var manager: RouterManager
 
     private var outputLabel: String {
-        guard let uid = app.settings.outputDeviceUID else { return "跟隨系統" }
-        return manager.outputDevices.first { $0.uid == uid }?.name ?? "（裝置已移除）"
+        guard let uid = app.settings.outputDeviceUID else { return L("route.followSystem") }
+        return manager.outputDevices.first { $0.uid == uid }?.name ?? L("device.removed")
     }
 
     var body: some View {
@@ -156,7 +156,7 @@ private struct AppRow: View {
                         .lineLimit(1)
                     if app.isPlaying {
                         Circle().fill(.green).frame(width: 6, height: 6)
-                            .help("正在播放")
+                            .help(L("row.playing"))
                     }
                     if app.processCount > 1 {
                         Text("\(app.processCount)")
@@ -165,10 +165,10 @@ private struct AppRow: View {
                             .padding(.horizontal, 4)
                             .padding(.vertical, 1)
                             .background(.quaternary, in: Capsule())
-                            .help("這個 App 有 \(app.processCount) 個發聲行程，會一起套用設定")
+                            .help(String(format: L("row.helperProcesses"), app.processCount))
                     }
                     if !app.isRunning {
-                        Text("未執行")
+                        Text(L("row.notRunning"))
                             .font(.caption2)
                             .foregroundStyle(.secondary)
                             .padding(.horizontal, 5)
@@ -193,9 +193,9 @@ private struct AppRow: View {
                             manager.setOutputDevice(nil, forKey: app.key)
                         } label: {
                             if app.settings.outputDeviceUID == nil {
-                                Label("跟隨系統", systemImage: "checkmark")
+                                Label(L("route.followSystem"), systemImage: "checkmark")
                             } else {
-                                Text("跟隨系統")
+                                Text(L("route.followSystem"))
                             }
                         }
                         Divider()
@@ -212,10 +212,10 @@ private struct AppRow: View {
                         }
                         if !app.settings.isPassthrough {
                             Divider()
-                            Button("重設這個 App") { manager.reset(key: app.key) }
+                            Button(L("route.reset")) { manager.reset(key: app.key) }
                         }
                         if !app.isRunning {
-                            Button("移除這筆設定") { manager.forget(key: app.key) }
+                            Button(L("route.forget")) { manager.forget(key: app.key) }
                         }
                     } label: {
                         Text(outputLabel)

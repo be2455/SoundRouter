@@ -22,6 +22,14 @@ mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 
 cp "$BIN_DIR/SoundRouterApp" "$APP/Contents/MacOS/SoundRouterApp"
 cp Packaging/Info.plist "$APP/Contents/Info.plist"
+
+# SwiftPM 把本地化字串放進執行檔旁邊的 .bundle。這個 .app 是手工組裝的，
+# 不搬過去的話 Bundle.module 找不到資源，介面會退回顯示 key 本身。
+# 放在 Contents/Resources 是因為 Bundle.module 會查 Bundle.main.resourceURL。
+for bundle in "$BIN_DIR"/*.bundle; do
+    [ -e "$bundle" ] || continue
+    cp -R "$bundle" "$APP/Contents/Resources/"
+done
 printf 'APPL????' > "$APP/Contents/PkgInfo"
 
 # 沒有 Developer ID 就用 ad-hoc 簽章。可以正常運作，但簽章雜湊會隨每次重建改變，

@@ -45,7 +45,7 @@ final class LoginItem: ObservableObject {
             lastError = nil
         } catch {
             // ad-hoc 簽章、或 App 不在使用者能寫入的位置時都可能失敗。
-            lastError = "設定開機啟動失敗：\(error.localizedDescription)"
+            lastError = String(format: L("loginItem.failed"), error.localizedDescription)
         }
         refresh()
     }

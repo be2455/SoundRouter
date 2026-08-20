@@ -4,6 +4,15 @@
 <dict>
 	<key>CFBundleName</key>
 	<string>SoundRouter</string>
+	<!-- 沒有宣告語言的話，macOS 會把整個 App 當成單一語言，
+	     系統偏好的語言不會被納入比對，Bundle.module 一律回退到開發語言。 -->
+	<key>CFBundleDevelopmentRegion</key>
+	<string>zh-Hant</string>
+	<key>CFBundleLocalizations</key>
+	<array>
+		<string>zh-Hant</string>
+		<string>en</string>
+	</array>
 	<key>CFBundleDisplayName</key>
 	<string>SoundRouter</string>
 	<key>CFBundleIdentifier</key>

@@ -3,6 +3,8 @@ import PackageDescription
 
 let package = Package(
     name: "SoundRouter",
+    // 有了 defaultLocalization，SwiftPM 才會處理 .lproj 目錄。
+    defaultLocalization: "zh-Hant",
     platforms: [.macOS(.v15)],
     products: [
         .library(name: "AudioRouterCore", targets: ["AudioRouterCore"]),
@@ -30,6 +32,7 @@ let package = Package(
         .executableTarget(
             name: "SoundRouterApp",
             dependencies: ["AudioRouterCore"],
+            resources: [.process("Resources")],
             swiftSettings: [.swiftLanguageMode(.v5)]
         ),
         .testTarget(
