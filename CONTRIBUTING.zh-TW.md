@@ -86,4 +86,5 @@ CI 會在 macOS runner 上跑 `swift build` 與 `swift test`，無法驗證任�
 - EQ／AudioUnit 效果鏈——掛點在 `RouteEngine.render` 寫入 output buffer 之前。
 - 一個 App 同時分流到多個輸出裝置。
 - AirPlay：AirPlay 目標會以 Core Audio 裝置出現，但它能不能當 aggregate 的 sub-device 尚未實測。
+- 在地化——所有介面字串都寫死繁體中文。
 - Intel Mac 完全沒有驗證過。

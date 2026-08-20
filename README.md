@@ -62,15 +62,9 @@ Builds are ad-hoc signed, so the signature hash changes every time you rebuild a
 
 Click the menu bar icon:
 
-```
-System output                    [ MacBook Pro Speakers ▾ ]
-──────────────────────────────────────────────────────────
-[icon]  Spotify ●                    [External Speakers ▾]
-              🔊  [−]  100%  [+]
+<img src="docs/screenshot.png" width="440" alt="SoundRouter panel showing the system output device and three apps, each with its own output device and volume">
 
-[icon]  Google Chrome 3                    [Follow system ▾]
-              🔊  [−]  100%  [+]
-```
+> The interface is currently Traditional Chinese only — the strings are hard-coded and there is no localization yet. See [Not covered](#not-covered).
 
 - **Output device**: the dropdown on the right of each row. "Follow system" means the app is left alone.
 - **Volume**: −/+ in 5% steps, capped at 100%. There is deliberately no gain boost — see [Why 100% is the ceiling](#why-100-is-the-ceiling).
@@ -193,6 +187,7 @@ Volume is a gain multiplier, and boosting past 1.0 pushes samples beyond ±1.0, 
 
 ## Not covered
 
+- **Localization**: every UI string is hard-coded in Traditional Chinese. Pulling them into a string catalog would be a good first contribution.
 - **EQ and AudioUnit effect chains**: `RouteEngine.render` only does volume and balance. Effects would hook in just before writing the output buffer.
 - **Splitting one app across multiple output devices**: one route targets one device.
 - **AirPlay**: AirPlay targets do appear as Core Audio devices and will show up in the dropdown, but whether one can serve as an aggregate sub-device is untested — network clocking makes it doubtful.

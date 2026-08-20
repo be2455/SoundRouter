@@ -86,4 +86,5 @@ Match the surrounding code. A few conventions that matter here:
 - EQ / AudioUnit effect chains — the hook point is in `RouteEngine.render`, just before writing the output buffer.
 - Splitting one app across several output devices.
 - AirPlay: targets appear as Core Audio devices, but whether one can serve as an aggregate sub-device is untested.
+- Localization — every UI string is hard-coded in Traditional Chinese.
 - Intel Macs have not been verified at all.
