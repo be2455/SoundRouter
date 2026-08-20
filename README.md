@@ -76,6 +76,8 @@ System output                    [ MacBook Pro Speakers ▾ ]
 - **Volume**: −/+ in 5% steps, capped at 100%. There is deliberately no gain boost — see [Why 100% is the ceiling](#why-100-is-the-ceiling).
 - **Green dot**: the app is currently producing audio.
 - **Number badge**: how many audio-producing processes the app has (see below).
+- **"Not running" badge**: the app has a saved route but is not currently running. The setting is kept and reapplied when it comes back.
+- **Red triangle / spinner**: the route failed (hover for the message), or its engine is still being set up.
 - **Gear, bottom right**: show/hide system processes.
 - **"Launch at login" checkbox** at the bottom: registers the app as a login item via `SMAppService`.
 
@@ -137,9 +139,18 @@ Both the tap and the aggregate device belong to the calling process and are dest
 
 Settings live in `~/Library/Application Support/SoundRouter/routes.json`, keyed by bundle ID. They survive quitting the app and restarting the routed app. Entries that return to their defaults are removed from the file.
 
+**If a route's output device is gone, the route resets to following the system output** and the device is forgotten. Keeping a UID that can no longer be resolved would leave the UI offering a device you cannot pick, and would move audio without warning the moment the device reappeared. The cost is that a *temporary* disappearance also discards the setting — a display going to sleep takes its HDMI audio device with it, for example.
+
 ## Diagnostics
 
-A menu bar app has no stdout, so every refresh overwrites `~/Library/Logs/SoundRouter-status.txt` with the current state: how many devices were found, which are the defaults, what playback sources exist, how many rows the list is showing. When the UI looks wrong, read this first — it separates "the data is wrong" from "the layout is wrong".
+A menu bar app has no stdout, so every refresh overwrites `~/Library/Logs/SoundRouter-status.txt` with the current state:
+
+- devices found, and which are the current defaults
+- every playback source, its process count, and whether it is playing
+- how many rows the list is showing, and how many playback-state listeners are installed
+- each active route: target device, volume, and whether its engine is running, still starting, or failed with an error
+
+When the UI looks wrong, read this first — it separates "the data is wrong" from "the layout is wrong". The route section is also the quickest way to tell a route that is genuinely stuck from one that is simply still being set up, since building an engine talks to `coreaudiod` and is not always instant.
 
 ## Testing
 
