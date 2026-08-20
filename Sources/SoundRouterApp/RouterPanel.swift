@@ -65,18 +65,6 @@ struct RouterPanel: View {
                     .help(error)
             }
 
-            if let notice = manager.lastNotice {
-                HStack(spacing: 4) {
-                    Text(notice)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(2)
-                    Button("知道了") { manager.lastNotice = nil }
-                        .buttonStyle(.link)
-                        .font(.caption)
-                }
-            }
-
             controlRow
         }
         .padding(.horizontal, 12)

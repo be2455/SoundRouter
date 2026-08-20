@@ -64,8 +64,6 @@ public final class RouterManager: ObservableObject {
     @Published public private(set) var defaultOutput: AudioDevice?
     @Published public private(set) var defaultInput: AudioDevice?
     @Published public var lastError: String?
-    /// 非錯誤的提示，例如某個 App 的輸出裝置消失而被改回跟隨系統。
-    @Published public var lastNotice: String?
 
     /// 是否把系統守護程序（CoreSpeech、audiomxd…）也列出來。
     /// 預設關閉：機器上通常有三十幾個這種行程，全開會把真正的 App 淹掉。
@@ -411,16 +409,15 @@ public final class RouterManager: ObservableObject {
     /// 又會無預警地把音訊搬走。改回跟隨系統的結果比較好預期。
     /// 代價是螢幕睡眠導致 HDMI 音訊暫時消失時，設定也會被清掉。
     private func dropMissingOutputDevices() {
-        var resetNames: [String] = []
+        var changed = false
         for (key, setting) in settings {
             guard let uid = setting.outputDeviceUID,
                   !outputDevices.contains(where: { $0.uid == uid }) else { continue }
             settings[key]?.outputDeviceUID = nil
-            resetNames.append(setting.displayName.isEmpty ? key : setting.displayName)
+            changed = true
         }
-        guard !resetNames.isEmpty else { return }
-        saveSettings()
-        lastNotice = "\(resetNames.joined(separator: "、"))：原本指定的輸出裝置已不存在，已改為跟隨系統"
+        // 不提示使用者：下拉選單本來就會改成顯示「跟隨系統」，狀態一看就知道。
+        if changed { saveSettings() }
     }
 
     private func rebuildSnapshot() {
