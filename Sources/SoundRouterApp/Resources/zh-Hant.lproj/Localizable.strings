@@ -1,10 +1,8 @@
 /* 系統輸出區 */
 "systemOutput.title" = "系統輸出";
-"device.none" = "（無）";
 
 /* 每一列 */
 "route.followSystem" = "跟隨系統";
-"device.removed" = "（裝置已移除）";
 "list.empty" = "找不到任何播放源";
 "row.notRunning" = "未執行";
 "row.playing" = "正在播放";
@@ -18,3 +16,5 @@
 "loginItem.failed" = "設定開機啟動失敗：%@";
 "systemProcesses.toggleHelp" = "顯示／隱藏系統程序（CoreSpeech、audiomxd 之類的背景服務）";
 "app.quit" = "結束";
+"route.auto" = "自動";
+"device.offline" = "選定的輸出裝置目前不在線上，暫時使用系統輸出。裝置接回來後會自動恢復。";

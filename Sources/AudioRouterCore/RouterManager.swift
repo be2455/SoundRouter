@@ -44,6 +44,9 @@ public struct RoutedApp: Identifiable, Hashable, Sendable {
     public let error: String?
     /// 引擎正在背景建立中。
     public let isStarting: Bool
+    /// 指定的輸出裝置目前不在線上。設定會留著，裝置回來就自動恢復。
+    /// 這一層只回報事實，要顯示什麼文案由 UI 決定。
+    public let isOutputDeviceOffline: Bool
 
     public var id: String { key }
     public var name: String { group?.name ?? settings.displayName }
@@ -192,7 +195,6 @@ public final class RouterManager: ObservableObject {
         defaultOutput = AudioDevices.defaultOutput()
         defaultInput = AudioDevices.defaultInput()
         currentGroups = AudioProcesses.groups()
-        dropMissingOutputDevices()
         reconcile()
         rebuildSnapshot()
         updatePlaybackObservers()
@@ -251,6 +253,7 @@ public final class RouterManager: ObservableObject {
             lines.append("  \(app.name)：\(parts.joined(separator: "、"))")
             if let error = app.error { lines.append("      錯誤：\(error)") }
             if app.isStarting { lines.append("      （建立中）") }
+            if app.isOutputDeviceOffline { lines.append("      指定的裝置目前不在線上，暫時走系統輸出") }
         }
         lines.append("")
         lines.append("— 播放源 —")
@@ -280,8 +283,9 @@ public final class RouterManager: ObservableObject {
             guard let group = groupsByKey[key], shouldRunEngine(key: key, group: group) else { continue }
 
             // 使用者指定的裝置可能已經拔掉、關機或斷線。拿一個不存在的 UID 去建
-            // aggregate 一定失敗，所以這裡先確認，不在就暫時退回系統輸出。
-            // 設定本身保留不動——裝置接回來時會自動恢復原本的路由。
+            // aggregate 一定失敗，所以先確認它還在，不在就暫時退回系統輸出。
+            // **設定本身留著不動**：使用者選過的裝置就是他要的，裝置接回來時
+            // 應該自動恢復，而不是要他重選一次。
             let requestedUID = setting.outputDeviceUID
             let requestedIsAvailable = requestedUID.map { uid in
                 outputDevices.contains { $0.uid == uid }
@@ -403,21 +407,9 @@ public final class RouterManager: ObservableObject {
         engineTargets.removeValue(forKey: key)
     }
 
-    /// 指定的輸出裝置不在了就把設定改回「跟隨系統」。
-    ///
-    /// 不保留失效的 UID：留著會讓 UI 顯示一個選不到的裝置，而且裝置回來時
-    /// 又會無預警地把音訊搬走。改回跟隨系統的結果比較好預期。
-    /// 代價是螢幕睡眠導致 HDMI 音訊暫時消失時，設定也會被清掉。
-    private func dropMissingOutputDevices() {
-        var changed = false
-        for (key, setting) in settings {
-            guard let uid = setting.outputDeviceUID,
-                  !outputDevices.contains(where: { $0.uid == uid }) else { continue }
-            settings[key]?.outputDeviceUID = nil
-            changed = true
-        }
-        // 不提示使用者：下拉選單本來就會改成顯示「跟隨系統」，狀態一看就知道。
-        if changed { saveSettings() }
+    private func isOutputDeviceOffline(_ setting: RouteSettings?) -> Bool {
+        guard let uid = setting?.outputDeviceUID else { return false }
+        return !outputDevices.contains { $0.uid == uid }
     }
 
     private func rebuildSnapshot() {
@@ -438,7 +430,8 @@ public final class RouterManager: ObservableObject {
                 settings: setting ?? RouteSettings(displayName: group.name),
                 isActive: engines[group.key]?.isRunning ?? false,
                 error: engineErrors[group.key],
-                isStarting: pendingStarts.contains(group.key)
+                isStarting: pendingStarts.contains(group.key),
+                isOutputDeviceOffline: isOutputDeviceOffline(setting)
             ))
         }
 
@@ -450,7 +443,8 @@ public final class RouterManager: ObservableObject {
                 settings: setting,
                 isActive: false,
                 error: engineErrors[key],
-                isStarting: pendingStarts.contains(key)
+                isStarting: pendingStarts.contains(key),
+                isOutputDeviceOffline: isOutputDeviceOffline(setting)
             ))
         }
 

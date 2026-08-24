@@ -1,10 +1,8 @@
 /* System output section */
 "systemOutput.title" = "System output";
-"device.none" = "(none)";
 
 /* Each row */
 "route.followSystem" = "Follow system";
-"device.removed" = "(device removed)";
 "list.empty" = "No playback sources found";
 "row.notRunning" = "Not running";
 "row.playing" = "Playing";
@@ -18,3 +16,5 @@
 "loginItem.failed" = "Could not change the login item: %@";
 "systemProcesses.toggleHelp" = "Show/hide system processes (background services such as CoreSpeech and audiomxd)";
 "app.quit" = "Quit";
+"route.auto" = "Auto";
+"device.offline" = "The selected output device is offline; using the system output until it comes back.";

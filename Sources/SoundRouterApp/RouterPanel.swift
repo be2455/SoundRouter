@@ -13,7 +13,9 @@ struct RouterPanel: View {
             Divider()
             footer
         }
-        .frame(width: 400)
+        // 寬度跟著內容走，但夾在上下限之間：App 名稱長度差異很大，
+        // 完全放任會讓面板寬到荒謬；完全寫死則會在裝置多時把分段控制擠扁。
+        .frame(minWidth: 380, idealWidth: 420, maxWidth: 560)
     }
 
     private var appList: some View {
@@ -73,7 +75,8 @@ struct RouterPanel: View {
     }
 
     private var controlRow: some View {
-        HStack {
+        // 明確指定間距，不吃系統預設值——那個值在不同 macOS 版本可能不一樣。
+        HStack(spacing: 12) {
             Toggle(isOn: Binding(
                 get: { loginItem.state.isOn },
                 set: { _ in loginItem.toggle() }
@@ -87,14 +90,19 @@ struct RouterPanel: View {
             Button {
                 manager.showsSystemProcesses.toggle()
             } label: {
-                Image(systemName: manager.showsSystemProcesses ? "gearshape.fill" : "gearshape")
+                Image(systemName: manager.showsSystemProcesses ? "ellipsis.circle.fill" : "ellipsis.circle")
             }
             .buttonStyle(.borderless)
             .foregroundStyle(manager.showsSystemProcesses ? Color.accentColor : Color.secondary)
             .help(L("systemProcesses.toggleHelp"))
 
-            Button(L("app.quit")) { NSApplication.shared.terminate(nil) }
-                .buttonStyle(.borderless)
+            Button {
+                NSApplication.shared.terminate(nil)
+            } label: {
+                Image(systemName: "power")
+            }
+            .buttonStyle(.borderless)
+            .help(L("app.quit"))
         }
     }
 }
@@ -105,32 +113,43 @@ private struct SystemOutputSection: View {
     @EnvironmentObject private var manager: RouterManager
 
     var body: some View {
-        HStack(spacing: 8) {
-            Text(L("systemOutput.title"))
-                .font(.caption.weight(.semibold))
+        // 尺寸與字體都對齊下面每一列的 App：同樣是「一個播放目標加一組輸出選擇」，
+        // 視覺上就該是同一種東西，而不是一個樣式不同的標題列。
+        HStack(spacing: 10) {
+            // 用電腦而不是喇叭：這一列講的是「整台機器的輸出」。
+            Image(systemName: "desktopcomputer")
+                .frame(width: 24, height: 24)
                 .foregroundStyle(.secondary)
+
+            Text(L("systemOutput.title"))
+                .fontWeight(.medium)
+                .lineLimit(1)
 
             Spacer()
 
-            Menu {
-                ForEach(manager.outputDevices) { device in
-                    Button {
-                        manager.setSystemDefaultOutput(device)
-                    } label: {
-                        if device.uid == manager.defaultOutput?.uid {
-                            Label(device.name, systemImage: "checkmark")
-                        } else {
-                            Text(device.name)
-                        }
-                    }
+            // 跟每個 App 那一列用同一種控制項。系統輸出一定有指定裝置，
+            // 所以沒有「自動」那一段。
+            Picker("", selection: Binding(
+                get: { manager.defaultOutput?.uid },
+                set: { uid in
+                    guard let uid,
+                          let device = manager.outputDevices.first(where: { $0.uid == uid })
+                    else { return }
+                    manager.setSystemDefaultOutput(device)
                 }
-            } label: {
-                Text(manager.defaultOutput?.name ?? L("device.none"))
+            )) {
+                ForEach(manager.outputDevices) { device in
+                    Image(systemName: DeviceIcon.symbol(for: device))
+                        .help(device.name)
+                        .tag(String?.some(device.uid))
+                }
             }
-            .controlSize(.small)
+            .pickerStyle(.segmented)
+            .labelsHidden()
             .fixedSize()
         }
-        .padding(12)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 10)
     }
 }
 
@@ -139,11 +158,6 @@ private struct SystemOutputSection: View {
 private struct AppRow: View {
     let app: RoutedApp
     @EnvironmentObject private var manager: RouterManager
-
-    private var outputLabel: String {
-        guard let uid = app.settings.outputDeviceUID else { return L("route.followSystem") }
-        return manager.outputDevices.first { $0.uid == uid }?.name ?? L("device.removed")
-    }
 
     var body: some View {
         HStack(alignment: .top, spacing: 10) {
@@ -181,6 +195,12 @@ private struct AppRow: View {
                             .foregroundStyle(.red)
                             .font(.caption)
                             .help(error)
+                    } else if app.isOutputDeviceOffline {
+                        // 選定的裝置暫時不在——設定留著，回來就恢復，所以不是錯誤。
+                        Image(systemName: "info.circle")
+                            .foregroundStyle(.secondary)
+                            .font(.caption)
+                            .help(L("device.offline"))
                     } else if app.isStarting {
                         // 建立引擎要跟 coreaudiod 溝通，可能要一會兒。
                         ProgressView()
@@ -188,55 +208,46 @@ private struct AppRow: View {
                             .scaleEffect(0.6)
                             .frame(width: 12, height: 12)
                     }
-                    Menu {
-                        Button {
-                            manager.setOutputDevice(nil, forKey: app.key)
-                        } label: {
-                            if app.settings.outputDeviceUID == nil {
-                                Label(L("route.followSystem"), systemImage: "checkmark")
-                            } else {
-                                Text(L("route.followSystem"))
-                            }
-                        }
-                        Divider()
+                    // 分段控制：第一段是「自動」（跟隨系統），其餘每個輸出裝置一段。
+                    // 只放圖示是因為裝置名稱動輒十來個字，四五個名稱擺不進這個寬度。
+                    Picker("", selection: Binding(
+                        get: { app.settings.outputDeviceUID },
+                        set: { manager.setOutputDevice($0, forKey: app.key) }
+                    )) {
+                        Text(L("route.auto"))
+                            .help(L("route.followSystem"))
+                            .tag(String?.none)
                         ForEach(manager.outputDevices) { device in
-                            Button {
-                                manager.setOutputDevice(device.uid, forKey: app.key)
-                            } label: {
-                                if device.uid == app.settings.outputDeviceUID {
-                                    Label(device.name, systemImage: "checkmark")
-                                } else {
-                                    Text(device.name)
-                                }
-                            }
+                            Image(systemName: DeviceIcon.symbol(for: device))
+                                .help(device.name)
+                                .tag(String?.some(device.uid))
                         }
-                        if !app.settings.isPassthrough {
-                            Divider()
-                            Button(L("route.reset")) { manager.reset(key: app.key) }
-                        }
-                        if !app.isRunning {
-                            Button(L("route.forget")) { manager.forget(key: app.key) }
-                        }
-                    } label: {
-                        Text(outputLabel)
                     }
-                    .controlSize(.small)
+                    .pickerStyle(.segmented)
+                    .labelsHidden()
                     .fixedSize()
                 }
 
-                VolumeStepper(
+                VolumeControl(
                     value: app.settings.volume,
                     isMuted: app.settings.muted,
                     onChange: { manager.setVolume($0, forKey: app.key) },
                     onToggleMute: { manager.setMuted(!app.settings.muted, forKey: app.key) }
                 )
-                // 撐滿整列寬度，內部的靜音鈕／−／百分比／＋ 就會整組置中。
-                .frame(maxWidth: .infinity)
             }
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 10)
         .opacity(app.isRunning ? (app.isPlaying ? 1 : 0.75) : 0.5)
+        // 分段控制沒有地方擺這兩個動作，改用右鍵選單。
+        .contextMenu {
+            if !app.settings.isPassthrough {
+                Button(L("route.reset")) { manager.reset(key: app.key) }
+            }
+            if !app.isRunning {
+                Button(L("route.forget")) { manager.forget(key: app.key) }
+            }
+        }
     }
 
     @ViewBuilder

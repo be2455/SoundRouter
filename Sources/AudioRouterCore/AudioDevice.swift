@@ -10,6 +10,9 @@ public struct AudioDevice: Identifiable, Hashable, Sendable {
     public let inputChannels: Int
     public let outputChannels: Int
     public let transport: String
+    /// 傳輸類型的結構化版本。UI 靠它決定圖示——用 `transport` 那個顯示字串去比對
+    /// 會在翻譯之後直接壞掉。
+    public let transportKind: TransportKind
     /// 由 SoundRouter 自己建立的 aggregate 裝置——不該出現在使用者可選清單裡。
     public let isOurs: Bool
 
@@ -25,8 +28,41 @@ public struct AudioDevice: Identifiable, Hashable, Sendable {
         self.inputChannels = id.readBufferListChannelCount(scope: kAudioObjectPropertyScopeInput)
         self.outputChannels = id.readBufferListChannelCount(scope: kAudioObjectPropertyScopeOutput)
         let transportCode: UInt32 = (try? id.read(kAudioDevicePropertyTransportType, as: UInt32.self)) ?? 0
+        self.transportKind = TransportKind(code: transportCode)
         self.transport = AudioDevice.transportName(transportCode)
         self.isOurs = uid.hasPrefix(RouteEngine.aggregateUIDPrefix)
+    }
+
+    public enum TransportKind: Sendable, Hashable {
+        case builtIn
+        case usb
+        case hdmi
+        case displayPort
+        case bluetooth
+        case airPlay
+        case virtual
+        case aggregate
+        case thunderbolt
+        case pci
+        case fireWire
+        case other
+
+        init(code: UInt32) {
+            switch code {
+            case kAudioDeviceTransportTypeBuiltIn: self = .builtIn
+            case kAudioDeviceTransportTypeUSB: self = .usb
+            case kAudioDeviceTransportTypeHDMI: self = .hdmi
+            case kAudioDeviceTransportTypeDisplayPort: self = .displayPort
+            case kAudioDeviceTransportTypeBluetooth, kAudioDeviceTransportTypeBluetoothLE: self = .bluetooth
+            case kAudioDeviceTransportTypeAirPlay: self = .airPlay
+            case kAudioDeviceTransportTypeVirtual: self = .virtual
+            case kAudioDeviceTransportTypeAggregate: self = .aggregate
+            case kAudioDeviceTransportTypeThunderbolt: self = .thunderbolt
+            case kAudioDeviceTransportTypePCI: self = .pci
+            case kAudioDeviceTransportTypeFireWire: self = .fireWire
+            default: self = .other
+            }
+        }
     }
 
     private static func transportName(_ code: UInt32) -> String {
