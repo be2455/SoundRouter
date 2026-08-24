@@ -66,16 +66,19 @@ Click the menu bar icon:
 
 > The screenshot is in Traditional Chinese; the interface follows your system language and ships with English too.
 
-- **Output device**: the dropdown on the right of each row. "Follow system" means the app is left alone.
-- **Volume**: −/+ in 5% steps, capped at 100%. There is deliberately no gain boost — see [Why 100% is the ceiling](#why-100-is-the-ceiling).
+- **Output device**: a segmented control, one segment per device. "Auto" leaves the app alone and lets it follow the system output. Segments show a device icon chosen by transport type — hover for the name.
+- **Volume**: a slider in 20 steps of 5%, capped at 100%. There is deliberately no gain boost — see [Why 100% is the ceiling](#why-100-is-the-ceiling).
 - **Green dot**: the app is currently producing audio.
 - **Number badge**: how many audio-producing processes the app has (see below).
 - **"Not running" badge**: the app has a saved route but is not currently running. The setting is kept and reapplied when it comes back.
-- **Red triangle / spinner**: the route failed (hover for the message), or its engine is still being set up.
-- **Gear, bottom right**: show/hide system processes.
+- **Red triangle / info circle / spinner**: the route failed (hover for the message); its device is offline and audio is temporarily following the system; or its engine is still being set up.
+- **Right-click a row** for "Reset this app" and, for apps that are not running, "Forget this setting".
+- **Ellipsis, bottom right**: show/hide system processes.
 - **"Launch at login" checkbox** at the bottom: registers the app as a login item via `SMAppService`.
 
-The "System output" row at the top is the global default device. It only affects apps you have not configured individually.
+The system output row at the top uses the same layout as the app rows, because it is the same kind of thing — a playback target with a set of output choices.
+
+It is the global default device, and only affects apps you have not configured individually.
 
 ## Playback source grouping
 
