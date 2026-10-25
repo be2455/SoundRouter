@@ -1,3 +1,4 @@
+import AppKit
 import Combine
 import CoreAudio
 import Foundation
@@ -109,6 +110,9 @@ public final class RouterManager: ObservableObject {
     /// 目前監看中的行程，用來判斷是否需要重掛。
     private var watchedPlaybackIDs: [AudioObjectID] = []
     private let storeURL: URL
+    /// 延後中的存檔。拖滑桿時每一格都會呼叫 mutate，不能每格都寫一次檔。
+    private var pendingSave: DispatchWorkItem?
+    private var terminationObserver: Any?
 
     public init(storeURL: URL? = nil) {
         self.storeURL = storeURL ?? RouterManager.defaultStoreURL()
@@ -121,6 +125,12 @@ public final class RouterManager: ObservableObject {
         }
         deviceObserver = AudioDevices.observeChanges(queue: .main) { [weak self] in
             Task { @MainActor in self?.refresh() }
+        }
+        // 結束前把還沒寫出去的設定補寫，最後一次調整才不會遺失。
+        terminationObserver = NotificationCenter.default.addObserver(
+            forName: NSApplication.willTerminateNotification, object: nil, queue: .main
+        ) { [weak self] _ in
+            MainActor.assumeIsolated { self?.saveSettings() }
         }
     }
 
@@ -204,7 +214,7 @@ public final class RouterManager: ObservableObject {
         if current.displayName.isEmpty { current.displayName = displayName(forKey: key) }
         body(&current)
         settings[key] = current
-        saveSettings()
+        scheduleSave()
         reconcile()
         rebuildSnapshot()
     }
@@ -520,7 +530,19 @@ public final class RouterManager: ObservableObject {
         settings = decoded
     }
 
+    /// 停手 0.5 秒後才寫檔。
+    private func scheduleSave() {
+        pendingSave?.cancel()
+        let work = DispatchWorkItem { [weak self] in
+            MainActor.assumeIsolated { self?.saveSettings() }
+        }
+        pendingSave = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5, execute: work)
+    }
+
     private func saveSettings() {
+        pendingSave?.cancel()
+        pendingSave = nil
         // 已回到預設值的項目不必留在檔案裡。
         let persisted = settings.filter { !$0.value.isPassthrough }
         let encoder = JSONEncoder()
