@@ -22,6 +22,8 @@
 /* 系統輸出區 */
 "systemOutput.current" = "目前輸出";
 "systemVolume.label" = "系統音量";
+"systemVolume.mute" = "系統靜音";
+"systemVolume.unmute" = "取消系統靜音";
 
 /* 分組 */
 "group.playing" = "正在播放";

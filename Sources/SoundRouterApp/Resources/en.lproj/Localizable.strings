@@ -22,6 +22,8 @@
 /* System output section */
 "systemOutput.current" = "Current output";
 "systemVolume.label" = "System volume";
+"systemVolume.mute" = "Mute system volume";
+"systemVolume.unmute" = "Unmute system volume";
 
 /* Groups */
 "group.playing" = "Playing";

@@ -72,6 +72,8 @@ public final class RouterManager: ObservableObject {
     @Published public var lastError: String?
     /// 系統輸出裝置的硬體音量；裝置沒有音量控制時為 nil。
     @Published public private(set) var systemVolume: Float?
+    /// 系統輸出裝置是否靜音。靜音不會改音量值，所以要另外讀。
+    @Published public private(set) var systemMuted = false
 
     /// 是否把系統守護程序（CoreSpeech、audiomxd…）也列出來。
     /// 預設關閉：機器上通常有三十幾個這種行程，全開會把真正的 App 淹掉。
@@ -99,6 +101,9 @@ public final class RouterManager: ObservableObject {
 
     private var processObserver: Any?
     private var deviceObserver: Any?
+    /// 系統輸出裝置的音量／靜音監聽，切換輸出時跟著換裝置。
+    private var volumeObserver: Any?
+    private var volumeObserverDeviceID: AudioObjectID?
     /// 播放狀態的監聽器，只掛在清單上會顯示的 App。
     private var playbackObserver: AudioProcesses.PlaybackObserver?
     /// 目前監看中的行程，用來判斷是否需要重掛。
@@ -175,6 +180,14 @@ public final class RouterManager: ObservableObject {
         } catch { lastError = "\(error)" }
     }
 
+    public func setSystemMuted(_ muted: Bool) {
+        guard let device = defaultOutput else { return }
+        do {
+            try AudioDevices.setMuted(muted, on: device)
+            systemMuted = muted
+        } catch { lastError = "\(error)" }
+    }
+
     public func setSystemDefaultInput(_ device: AudioDevice) {
         do { try AudioDevices.setDefaultInput(device) } catch { lastError = "\(error)" }
         refresh()
@@ -207,12 +220,29 @@ public final class RouterManager: ObservableObject {
         inputDevices = AudioDevices.inputs()
         defaultOutput = AudioDevices.defaultOutput()
         defaultInput = AudioDevices.defaultInput()
-        systemVolume = defaultOutput.flatMap(AudioDevices.volume(of:))
+        readSystemVolume()
+        updateVolumeObserver()
         currentGroups = AudioProcesses.groups()
         reconcile()
         rebuildSnapshot()
         updatePlaybackObservers()
         writeDiagnosticSnapshot()
+    }
+
+    private func readSystemVolume() {
+        systemVolume = defaultOutput.flatMap(AudioDevices.volume(of:))
+        systemMuted = defaultOutput.flatMap(AudioDevices.isMuted) ?? false
+    }
+
+    /// 音量變動只重讀音量，不走整個 refresh——拖音量鍵時通知很密。
+    private func updateVolumeObserver() {
+        guard defaultOutput?.id != volumeObserverDeviceID else { return }
+        volumeObserverDeviceID = defaultOutput?.id
+        volumeObserver = defaultOutput.map {
+            AudioDevices.observeVolume(of: $0, queue: .main) { [weak self] in
+                Task { @MainActor in self?.readSystemVolume() }
+            }
+        }
     }
 
     /// 只對清單上顯示得出來的 App 監看播放狀態。

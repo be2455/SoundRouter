@@ -144,22 +144,33 @@ private struct SystemOutputSection: View {
 
             // 有些裝置（HDMI、部分 USB 介面）沒有硬體音量，那就不給滑桿。
             if let volume = manager.systemVolume {
+                let muted = manager.systemMuted
                 HStack(spacing: 10) {
-                    Image(systemName: "speaker.fill")
-                        .font(.system(size: 13))
-                        .frame(width: 16)
-                        .accessibilityHidden(true)
-                    VolumeSlider(value: volume, label: L("systemVolume.label")) {
+                    IconButton(
+                        systemImage: muted ? "speaker.slash.fill" : "speaker.fill",
+                        label: L(muted ? "systemVolume.unmute" : "systemVolume.mute"),
+                        isOn: muted
+                    ) {
+                        manager.setSystemMuted(!muted)
+                    }
+                    .foregroundStyle(muted ? Color.red : Color.secondary)
+                    VolumeSlider(value: volume, dimmed: muted, label: L("systemVolume.label")) {
                         manager.setSystemVolume($0)
                     }
                     Image(systemName: "speaker.wave.3.fill")
                         .font(.system(size: 13))
                         .frame(width: 18)
                         .accessibilityHidden(true)
-                    // 這裡一律顯示，即使是 100%。
-                    Text("\(Int((volume * 100).rounded()))%")
-                        .font(.system(size: 12).monospacedDigit())
-                        .frame(width: 34, alignment: .trailing)
+                    // 這裡一律顯示，即使是 100%；靜音時跟 App 列一樣改成紅字。
+                    Group {
+                        if muted {
+                            Text(L("row.muted")).foregroundStyle(.red)
+                        } else {
+                            Text("\(Int((volume * 100).rounded()))%")
+                        }
+                    }
+                    .font(.system(size: 12).monospacedDigit())
+                    .frame(width: 34, alignment: .trailing)
                 }
                 .foregroundStyle(.secondary)
                 .padding(.top, 12)
