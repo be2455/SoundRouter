@@ -368,16 +368,17 @@ public final class RouterManager: ObservableObject {
             // 已經有一個在背景建立中就不要再發動。
             guard !pendingStarts.contains(key) else { continue }
 
-            teardownEngine(forKey: key)
-
+            // 舊引擎先留著，等新的建好再換（engineDidStart）。先拆的話，tap 一拆
+            // 原本的輸出路徑就恢復了，建立期間會以原音量出聲——靜音的 App 也一樣。
+            // helper 行程加入或離開都會走到這裡，LINE、瀏覽器這類 App 很常發生。
             let engine = RouteEngine(
                 label: setting.displayName.isEmpty ? key : setting.displayName,
                 processObjectIDs: processIDs,
                 outputDeviceUID: deviceUID
             )
-            engine.volume = setting.volume
-            engine.isMuted = setting.muted
-            engine.balance = setting.balance
+            // 新舊兩個 tap 會短暫並存，新的先靜音，否則換手前會同時出兩份聲音。
+            // 真正的參數在換手時才套上。
+            engine.isMuted = true
 
             // RouteEngine.start() 會跟 coreaudiod 做同步 IPC，而那個呼叫可能長時間
             // 不返回（裝置正在重新列舉、或 coreaudiod 忙碌時都遇過）。在主執行緒上
@@ -407,12 +408,13 @@ public final class RouterManager: ObservableObject {
     ) {
         pendingStarts.remove(key)
 
-        // 建立期間設定可能已經改過。若期間已經有別的引擎接手，這個就沒用了。
-        guard engines[key] == nil else {
-            engine.stop()
-            rebuildSnapshot()
-            return
-        }
+        // 換手：先停舊的再套上真正的參數，兩步之間不會讓出主執行緒，所以不會漏音。
+        // 建立期間設定若已改成不需要引擎，下面的 reconcile 會把它收掉。
+        engines[key]?.stop()
+        let setting = settings(forKey: key)
+        engine.volume = setting.volume
+        engine.isMuted = setting.muted
+        engine.balance = setting.balance
 
         engines[key] = engine
         engineTargets[key] = (deviceUID, processIDs)
