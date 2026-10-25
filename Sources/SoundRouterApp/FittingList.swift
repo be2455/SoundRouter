@@ -13,17 +13,19 @@ import SwiftUI
 /// （頂多多留或少留一點空白），但不會再出現整塊消失或被切一半。
 struct FittingList<Content: View>: View {
     private let estimatedHeight: CGFloat
+    private let reservedHeight: CGFloat
     private let content: Content
 
-    init(estimatedHeight: CGFloat, @ViewBuilder content: () -> Content) {
+    init(estimatedHeight: CGFloat, reservedHeight: CGFloat = 280, @ViewBuilder content: () -> Content) {
         self.estimatedHeight = estimatedHeight
+        self.reservedHeight = reservedHeight
         self.content = content()
     }
 
     /// 螢幕可用高度扣掉面板其餘部分（系統輸出區、分頁列、footer）的概略值。
     private var capHeight: CGFloat {
         let screenHeight = NSScreen.main?.visibleFrame.height ?? 900
-        return max(240, screenHeight - 280)
+        return max(240, screenHeight - reservedHeight)
     }
 
     var body: some View {

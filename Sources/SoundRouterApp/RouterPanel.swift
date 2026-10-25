@@ -1,15 +1,15 @@
+import AppKit
 import AudioRouterCore
 import SwiftUI
 
 struct RouterPanel: View {
     @EnvironmentObject private var manager: RouterManager
+    @EnvironmentObject private var chooser: DeviceChooser
     @StateObject private var loginItem = LoginItem()
 
     var body: some View {
         VStack(spacing: 0) {
-            SystemOutputSection()
-            Divider().padding(.horizontal, 16)
-            appList
+            content
             ErrorBanner(loginError: loginItem.lastError)
             footer
         }
@@ -30,34 +30,38 @@ struct RouterPanel: View {
         ].filter { !$0.apps.isEmpty }
     }
 
-    private var appList: some View {
-        Group {
-            if manager.apps.isEmpty {
-                VStack(spacing: 6) {
-                    Image(systemName: "speaker.slash")
-                        .font(.title2)
-                        .foregroundStyle(.tertiary)
-                    Text(L("list.empty"))
-                        .font(.callout)
-                        .foregroundStyle(.secondary)
-                }
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 28)
-            } else {
-                let groups = groups
-                // 每列 46pt，每個群組標題約 32pt，再加上下各 4pt 留白。
-                FittingList(estimatedHeight: CGFloat(manager.apps.count) * 46 + CGFloat(groups.count) * 32 + 8) {
+    /// 系統輸出區和 App 清單放在同一個捲動區：展開裝置清單時往下長，太高就捲動，
+    /// 不會把面板撐出螢幕。
+    private var content: some View {
+        let groups = groups
+        // 每列 46pt，每個群組標題約 32pt，系統輸出區約 150pt，加上展開的清單（每項約 42pt）。
+        let estimated = 150 + CGFloat(manager.apps.count) * 46 + CGFloat(groups.count) * 32 + 8
+            + CGFloat(chooser.entries.count) * 42
+        return FittingList(estimatedHeight: estimated, reservedHeight: 280) {
+            VStack(spacing: 0) {
+                SystemOutputSection()
+                Divider().padding(.horizontal, 16)
+                if manager.apps.isEmpty {
+                    VStack(spacing: 6) {
+                        Image(systemName: "speaker.slash")
+                            .font(.title2)
+                            .foregroundStyle(.tertiary)
+                        Text(L("list.empty"))
+                            .font(.callout)
+                            .foregroundStyle(.secondary)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 28)
+                } else {
                     // 用 VStack 而非 LazyVStack：清單頂多幾十列，不需要延遲載入，
                     // 而且延遲建立的子視圖會讓視窗算不出正確高度。
-                    VStack(spacing: 0) {
-                        ForEach(groups, id: \.title) { group in
-                            GroupHeader(title: group.title, count: group.apps.count)
-                            ForEach(group.apps) { app in
-                                AppRow(app: app)
-                            }
+                    ForEach(groups, id: \.title) { group in
+                        GroupHeader(title: group.title, count: group.apps.count)
+                        ForEach(group.apps) { app in
+                            AppRow(app: app)
                         }
                     }
-                    .padding(.bottom, 4)
+                    Spacer().frame(height: 4)
                 }
             }
         }
@@ -113,30 +117,30 @@ struct RouterPanel: View {
 
 private struct SystemOutputSection: View {
     @EnvironmentObject private var manager: RouterManager
+    @EnvironmentObject private var chooser: DeviceChooser
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             SectionTitle(text: L("systemOutput.title"))
                 .padding(.bottom, 8)
 
-            // 原生 Menu：Esc、點外面關閉、方向鍵、VoiceOver 都由系統處理。
+            // 不用 SwiftUI Menu：面板放在 NSMenu 裡，Menu 在選單追蹤中開不出來，改成原地展開。
             // 系統輸出一定有指定裝置，所以沒有「跟隨系統輸出」那一項。
-            Menu {
-                ForEach(manager.outputDevices) { device in
-                    DeviceMenuItem(
-                        title: device.name,
-                        subtitle: DeviceTransport.name(for: device),
-                        isSelected: device.uid == manager.defaultOutput?.uid
-                    ) {
-                        manager.setSystemDefaultOutput(device)
-                    }
-                }
-            } label: {
-                outputButtonLabel
-            }
-            .menuStyle(.button)
+            Button {
+                chooser.toggle(
+                    owner: "system",
+                    entries: manager.outputDevices.map { device in
+                        PopUpEntry(
+                            title: device.name,
+                            subtitle: DeviceTransport.name(for: device),
+                            isSelected: device.uid == manager.defaultOutput?.uid
+                        ) { manager.setSystemDefaultOutput(device) }
+                    })
+            } label: { outputButtonLabel }
             .buttonStyle(.plain)
-            .menuIndicator(.hidden)
+            if chooser.owner == "system" {
+                DeviceList(entries: chooser.entries)
+            }
 
             // 有些裝置（HDMI、部分 USB 介面）沒有硬體音量，那就不給滑桿。
             if let volume = manager.systemVolume {
@@ -240,11 +244,21 @@ private struct GroupHeader: View {
 private struct AppRow: View {
     let app: RoutedApp
     @EnvironmentObject private var manager: RouterManager
+    @EnvironmentObject private var chooser: DeviceChooser
     @State private var isHovered = false
 
     private var isMuted: Bool { app.settings.muted }
 
     var body: some View {
+        VStack(spacing: 0) {
+            row
+            if chooser.owner == app.key {
+                DeviceList(entries: chooser.entries)
+            }
+        }
+    }
+
+    private var row: some View {
         HStack(spacing: 10) {
             icon
                 .opacity(isMuted ? 0.45 : 1)
@@ -366,29 +380,32 @@ private struct RouteMenu: View {
         return manager.outputDevices.first { $0.uid == uid }?.name ?? uid
     }
 
+    @EnvironmentObject private var chooser: DeviceChooser
+
+    var entries: [PopUpEntry] {
+        var list = [
+            PopUpEntry(
+                title: L("route.followSystem"),
+                subtitle: manager.defaultOutput?.name ?? "",
+                isSelected: selectedUID == nil
+            ) { manager.setOutputDevice(nil, forKey: app.key) }
+        ]
+        for device in manager.outputDevices {
+            // 只在「這個 App」失敗過的裝置才停用：同一個裝置對別的 App 不一定會失敗。
+            let failed = device.uid == app.failedDeviceUID
+            list.append(PopUpEntry(
+                title: device.name,
+                subtitle: failed ? L("device.unavailable") : DeviceTransport.name(for: device),
+                isSelected: device.uid == selectedUID,
+                isEnabled: !failed
+            ) { manager.setOutputDevice(device.uid, forKey: app.key) })
+        }
+        return list
+    }
+
     var body: some View {
-        Menu {
-            Section(String(format: L("route.menuTitle"), app.name)) {
-                DeviceMenuItem(
-                    title: L("route.followSystem"),
-                    subtitle: manager.defaultOutput?.name ?? "",
-                    isSelected: selectedUID == nil
-                ) {
-                    manager.setOutputDevice(nil, forKey: app.key)
-                }
-                ForEach(manager.outputDevices) { device in
-                    // 只在「這個 App」失敗過的裝置才停用：同一個裝置對別的 App 不一定會失敗。
-                    let failed = device.uid == app.failedDeviceUID
-                    DeviceMenuItem(
-                        title: device.name,
-                        subtitle: failed ? L("device.unavailable") : DeviceTransport.name(for: device),
-                        isSelected: device.uid == selectedUID
-                    ) {
-                        manager.setOutputDevice(device.uid, forKey: app.key)
-                    }
-                    .disabled(failed)
-                }
-            }
+        Button {
+            chooser.toggle(owner: app.key, entries: entries)
         } label: {
             Image(systemName: "arrow.triangle.branch")
                 .font(.system(size: 13))
@@ -400,9 +417,7 @@ private struct RouteMenu: View {
                 )
                 .contentShape(RoundedRectangle(cornerRadius: 8))
         }
-        .menuStyle(.button)
         .buttonStyle(.plain)
-        .menuIndicator(.hidden)
         .fixedSize()
         .accessibilityLabel(String(format: L("route.buttonLabel"), app.name, selectedName))
         // 選定的裝置暫時不在——設定留著，回來就恢復，所以不是錯誤。
@@ -410,19 +425,67 @@ private struct RouteMenu: View {
     }
 }
 
-/// 選單裡的一個裝置。用 Toggle 是因為原生選單會把它畫成帶勾號的項目；
-/// 第二個 Text 會變成選單項目的副標。
-private struct DeviceMenuItem: View {
+struct PopUpEntry {
     let title: String
     let subtitle: String
     let isSelected: Bool
+    var isEnabled = true
     let action: () -> Void
+}
+
+/// 面板放在 NSMenu 裡，SwiftUI Menu 和再彈出的 NSMenu 都打不開，所以裝置清單用
+/// 一般視圖畫，直接展開在觸發它的按鈕下方。
+final class DeviceChooser: ObservableObject {
+    @Published private(set) var owner: String?
+    @Published private(set) var entries: [PopUpEntry] = []
+
+    /// 同一個按鈕再點一次就收起。
+    func toggle(owner: String, entries: [PopUpEntry]) {
+        if self.owner == owner { close() } else { self.owner = owner; self.entries = entries }
+    }
+
+    func close() {
+        owner = nil
+        entries = []
+    }
+}
+
+private struct DeviceList: View {
+    let entries: [PopUpEntry]
+    @EnvironmentObject private var chooser: DeviceChooser
 
     var body: some View {
-        Toggle(isOn: Binding(get: { isSelected }, set: { _ in action() })) {
-            Text(title)
-            Text(subtitle)
+        VStack(alignment: .leading, spacing: 0) {
+            ForEach(entries.indices, id: \.self) { i in
+                let entry = entries[i]
+                Button {
+                    entry.action()
+                    chooser.close()
+                } label: {
+                    HStack(spacing: 8) {
+                        Image(systemName: "checkmark")
+                            .font(.system(size: 11, weight: .semibold))
+                            .frame(width: 14)
+                            .opacity(entry.isSelected ? 1 : 0)
+                        VStack(alignment: .leading, spacing: 1) {
+                            Text(entry.title).font(.system(size: 13)).lineLimit(1)
+                            Text(entry.subtitle)
+                                .font(.system(size: 11))
+                                .foregroundStyle(.secondary)
+                                .lineLimit(1)
+                        }
+                        Spacer(minLength: 0)
+                    }
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 5)
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .disabled(!entry.isEnabled)
+                .opacity(entry.isEnabled ? 1 : 0.45)
+            }
         }
+        .padding(.vertical, 4)
     }
 }
 
