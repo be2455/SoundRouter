@@ -47,6 +47,8 @@ public struct RoutedApp: Identifiable, Hashable, Sendable {
     /// 指定的輸出裝置目前不在線上。設定會留著，裝置回來就自動恢復。
     /// 這一層只回報事實，要顯示什麼文案由 UI 決定。
     public let isOutputDeviceOffline: Bool
+    /// 建立失敗時的目標裝置 UID（「自動」時是當下的系統輸出）。UI 用它把該裝置標成無法使用。
+    public let failedDeviceUID: String?
 
     public var id: String { key }
     public var name: String { group?.name ?? settings.displayName }
@@ -66,7 +68,10 @@ public final class RouterManager: ObservableObject {
     @Published public private(set) var inputDevices: [AudioDevice] = []
     @Published public private(set) var defaultOutput: AudioDevice?
     @Published public private(set) var defaultInput: AudioDevice?
+    /// 系統層級操作（切換系統輸出、調系統音量）失敗的訊息。個別路由的錯誤在 `RoutedApp.error`。
     @Published public var lastError: String?
+    /// 系統輸出裝置的硬體音量；裝置沒有音量控制時為 nil。
+    @Published public private(set) var systemVolume: Float?
 
     /// 是否把系統守護程序（CoreSpeech、audiomxd…）也列出來。
     /// 預設關閉：機器上通常有三十幾個這種行程，全開會把真正的 App 淹掉。
@@ -162,6 +167,14 @@ public final class RouterManager: ObservableObject {
         refresh()
     }
 
+    public func setSystemVolume(_ volume: Float) {
+        guard let device = defaultOutput else { return }
+        do {
+            try AudioDevices.setVolume(volume, on: device)
+            systemVolume = max(0, min(1, volume))
+        } catch { lastError = "\(error)" }
+    }
+
     public func setSystemDefaultInput(_ device: AudioDevice) {
         do { try AudioDevices.setDefaultInput(device) } catch { lastError = "\(error)" }
         refresh()
@@ -194,6 +207,7 @@ public final class RouterManager: ObservableObject {
         inputDevices = AudioDevices.inputs()
         defaultOutput = AudioDevices.defaultOutput()
         defaultInput = AudioDevices.defaultInput()
+        systemVolume = defaultOutput.flatMap(AudioDevices.volume(of:))
         currentGroups = AudioProcesses.groups()
         reconcile()
         rebuildSnapshot()
@@ -339,7 +353,6 @@ public final class RouterManager: ObservableObject {
             // 不返回（裝置正在重新列舉、或 coreaudiod 忙碌時都遇過）。在主執行緒上
             // 直接呼叫會讓整個 UI 凍住、連選單都打不開，所以丟到背景執行緒。
             pendingStarts.insert(key)
-            let displayName = setting.displayName.isEmpty ? key : setting.displayName
             Task.detached(priority: .userInitiated) { [weak self] in
                 do {
                     try engine.start()
@@ -349,7 +362,7 @@ public final class RouterManager: ObservableObject {
                 } catch {
                     await self?.engineDidFail(
                         key: key, deviceUID: deviceUID, processIDs: processIDs,
-                        displayName: displayName, message: "\(error)"
+                        message: "\(error)"
                     )
                 }
             }
@@ -385,13 +398,11 @@ public final class RouterManager: ObservableObject {
         key: String,
         deviceUID: String,
         processIDs: [AudioObjectID],
-        displayName: String,
         message: String
     ) {
         pendingStarts.remove(key)
         engineErrors[key] = message
         failedTargets[key] = (deviceUID, processIDs)
-        lastError = "\(displayName)：\(message)"
         rebuildSnapshot()
         writeDiagnosticSnapshot()
     }
@@ -410,6 +421,10 @@ public final class RouterManager: ObservableObject {
     private func isOutputDeviceOffline(_ setting: RouteSettings?) -> Bool {
         guard let uid = setting?.outputDeviceUID else { return false }
         return !outputDevices.contains { $0.uid == uid }
+    }
+
+    private func failedDeviceUID(forKey key: String) -> String? {
+        engineErrors[key] == nil ? nil : failedTargets[key]?.deviceUID
     }
 
     private func rebuildSnapshot() {
@@ -431,12 +446,17 @@ public final class RouterManager: ObservableObject {
                 isActive: engines[group.key]?.isRunning ?? false,
                 error: engineErrors[group.key],
                 isStarting: pendingStarts.contains(group.key),
-                isOutputDeviceOffline: isOutputDeviceOffline(setting)
+                isOutputDeviceOffline: isOutputDeviceOffline(setting),
+                failedDeviceUID: failedDeviceUID(forKey: group.key)
             ))
         }
 
-        // 有記住設定但目前沒在跑的 App，列在後面。
-        for (key, setting) in settings where !seen.contains(key) && !setting.isPassthrough {
+        // 有記住設定但目前沒在跑的 App，列在後面。依名稱排序，否則 dictionary
+        // 的走訪順序不固定，每次刷新都會跳動。
+        let remembered = settings
+            .filter { !seen.contains($0.key) && !$0.value.isPassthrough }
+            .sorted { $0.value.displayName.localizedStandardCompare($1.value.displayName) == .orderedAscending }
+        for (key, setting) in remembered {
             result.append(RoutedApp(
                 key: key,
                 group: nil,
@@ -444,7 +464,8 @@ public final class RouterManager: ObservableObject {
                 isActive: false,
                 error: engineErrors[key],
                 isStarting: pendingStarts.contains(key),
-                isOutputDeviceOffline: isOutputDeviceOffline(setting)
+                isOutputDeviceOffline: isOutputDeviceOffline(setting),
+                failedDeviceUID: failedDeviceUID(forKey: key)
             ))
         }
 
