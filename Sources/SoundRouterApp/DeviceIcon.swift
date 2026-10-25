@@ -29,3 +29,23 @@ enum DeviceIcon {
         }
     }
 }
+
+/// 連接類型的顯示名稱。`AudioDevice.transport` 是給命令列看的固定中文，這裡才跟隨系統語言。
+enum DeviceTransport {
+    static func name(for device: AudioDevice) -> String {
+        switch device.transportKind {
+        case .builtIn: return L("transport.builtIn")
+        case .usb: return "USB"
+        case .hdmi: return "HDMI"
+        case .displayPort: return "DisplayPort"
+        case .bluetooth: return L("transport.bluetooth")
+        case .airPlay: return "AirPlay"
+        case .virtual: return L("transport.virtual")
+        case .aggregate: return L("transport.aggregate")
+        case .thunderbolt: return "Thunderbolt"
+        case .pci: return "PCI"
+        case .fireWire: return "FireWire"
+        case .other: return L("transport.other")
+        }
+    }
+}
