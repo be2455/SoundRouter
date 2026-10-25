@@ -290,9 +290,11 @@ private struct AppRow: View {
             RouteMenu(app: app)
 
             IconButton(
-                systemImage: isMuted ? "speaker.slash.fill" : "speaker.wave.2.fill",
+                systemImage: isMuted ? "speaker.slash.fill" : "speaker.wave.3.fill",
                 label: String(format: L(isMuted ? "row.unmute" : "row.mute"), app.name),
-                isOn: isMuted
+                isOn: isMuted,
+                // 聲波格數跟著音量走，0% 時只剩喇叭本體。
+                variableValue: isMuted ? nil : Double(app.settings.volume)
             ) {
                 manager.setMuted(!isMuted, forKey: app.key)
             }
@@ -348,14 +350,17 @@ private struct AppRow: View {
         return app.isRunning ? .primary : .secondary
     }
 
-    /// 100% 不顯示數字——那是預設值，沒有資訊量；靜音時改成紅字「靜音」。
+    /// 一律顯示百分比（含 100%），靜音時改成紅字「靜音」。
+    ///
+    /// 每個分支都要有視圖：空的分支不會產生視圖，外面的 `.frame(width: 32)`
+    /// 跟著消失，HStack 少掉這一欄和一段間距，滑桿就會變長、整列往右擠。
     @ViewBuilder
     private var valueText: some View {
         if isMuted {
             Text(L("row.muted"))
                 .font(.system(size: 11))
                 .foregroundStyle(.red)
-        } else if app.settings.volume < 1 {
+        } else {
             Text("\(Int((app.settings.volume * 100).rounded()))%")
                 .font(.system(size: 11).monospacedDigit())
                 .foregroundStyle(.secondary)
@@ -616,11 +621,13 @@ private struct IconButton: View {
     let systemImage: String
     let label: String
     var isOn: Bool?
+    /// 0…1，給支援的符號（例如 speaker.wave.3）依數值點亮聲波格數。
+    var variableValue: Double?
     let action: () -> Void
 
     var body: some View {
         Button(action: action) {
-            Image(systemName: systemImage)
+            Image(systemName: systemImage, variableValue: variableValue)
                 .font(.system(size: 13))
                 .frame(width: 28, height: 28)
                 .contentShape(RoundedRectangle(cornerRadius: 8))
