@@ -119,7 +119,7 @@ public enum AudioProcesses {
 
         for process in processes {
             let owner = resolveOwner(process.pid)
-            let key = owner?.bundleID ?? process.bundleID ?? "pid:\(process.pid)"
+            let key = owner?.bundleID ?? process.bundleID ?? "\(pidKeyPrefix)\(process.pid)"
             buckets[key, default: []].append(process)
             if owners[key] == nil { owners[key] = owner }
         }
@@ -142,6 +142,14 @@ public enum AudioProcesses {
             if lhs.isSystemProcess != rhs.isSystemProcess { return !lhs.isSystemProcess }
             return lhs.name.localizedStandardCompare(rhs.name) == .orderedAscending
         }
+    }
+
+    /// 沒有 bundle ID 可用時退回以 pid 當鍵。pid 會被重用，這種鍵只在行程活著時有意義。
+    static let pidKeyPrefix = "pid:"
+
+    /// 這個鍵指的東西在行程結束後還找得回來嗎？pid 鍵不行：存下來的設定下次可能套到別的行程上。
+    static func isPersistentKey(_ key: String) -> Bool {
+        !key.hasPrefix(pidKeyPrefix)
     }
 
     public static func group(key: String) -> AudioProcessGroup? {

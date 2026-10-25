@@ -497,6 +497,8 @@ public final class RouterManager: ObservableObject {
         // 的走訪順序不固定，每次刷新都會跳動。
         let remembered = settings
             .filter { !seen.contains($0.key) && !$0.value.isPassthrough }
+            // pid 鍵的行程結束了就不會再回來，列出來只是一筆刪不完的殘骸。
+            .filter { AudioProcesses.isPersistentKey($0.key) }
             .sorted { $0.value.displayName.localizedStandardCompare($1.value.displayName) == .orderedAscending }
         for (key, setting) in remembered {
             result.append(RoutedApp(
@@ -527,7 +529,8 @@ public final class RouterManager: ObservableObject {
         guard let data = try? Data(contentsOf: storeURL),
               let decoded = try? JSONDecoder().decode([String: RouteSettings].self, from: data)
         else { return }
-        settings = decoded
+        // 舊版會把 pid 鍵也寫進檔案，讀回來時丟掉。
+        settings = decoded.filter { AudioProcesses.isPersistentKey($0.key) }
     }
 
     /// 停手 0.5 秒後才寫檔。
@@ -544,7 +547,7 @@ public final class RouterManager: ObservableObject {
         pendingSave?.cancel()
         pendingSave = nil
         // 已回到預設值的項目不必留在檔案裡。
-        let persisted = settings.filter { !$0.value.isPassthrough }
+        let persisted = settings.filter { !$0.value.isPassthrough && AudioProcesses.isPersistentKey($0.key) }
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
         guard let data = try? encoder.encode(persisted) else { return }
