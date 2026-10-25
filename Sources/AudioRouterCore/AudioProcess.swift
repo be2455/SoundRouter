@@ -187,9 +187,18 @@ public enum AudioProcesses {
     /// 不用父行程鏈當主要手段，是因為 XPC 服務是由 launchd 啟動的，
     /// 它們的父行程是 launchd 而不是那個 App——而 XPC 服務往往正是真正發聲的那個。
     /// 父行程鏈只當備援，處理不住在 bundle 裡、但由某個 App 直接生出來的行程。
+    ///
+    /// 系統框架裡的 XPC 服務（例如 Safari 的 `com.apple.WebKit.GPU`，住在
+    /// WebKit.framework 裡）路徑上沒有 `.app`、父行程又是 launchd，兩招都失效；
+    /// 這時改問核心「誰對這個行程負責」，拿到的就是呼叫它的 App。
     static func owningApplication(of pid: pid_t) -> OwningApplication? {
         if let fromPath = owningApplicationFromExecutablePath(of: pid) {
             return fromPath
+        }
+        let responsible = responsibility_get_pid_responsible_for_pid(pid)
+        if responsible > 1, responsible != pid,
+           let owner = owningApplicationFromParentChain(of: responsible) {
+            return owner
         }
         return owningApplicationFromParentChain(of: pid)
     }
@@ -358,3 +367,7 @@ public enum AudioProcesses {
         }
     }
 }
+
+/// libsystem 有匯出、但沒有公開標頭的 API：回傳對某個行程「負責」的行程（XPC 服務 → 呼叫它的 App）。
+@_silgen_name("responsibility_get_pid_responsible_for_pid")
+private func responsibility_get_pid_responsible_for_pid(_ pid: pid_t) -> pid_t
