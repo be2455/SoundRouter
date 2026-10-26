@@ -439,8 +439,8 @@ private struct RouteMenu: View {
         Button {
             chooser.toggle(owner: app.key, entries: entries)
         } label: {
-            Image(systemName: "arrow.triangle.branch")
-                .font(.system(size: 13))
+            RouteGlyph()
+                .frame(width: 18, height: 18)
                 .frame(width: 28, height: 28)
                 .foregroundStyle(selectedUID == nil ? Color.secondary : Color.accentColor)
                 .overlay(
@@ -454,6 +454,43 @@ private struct RouteMenu: View {
         .accessibilityLabel(String(format: L("route.buttonLabel"), app.name, selectedName))
         // 選定的裝置暫時不在——設定留著，回來就恢復，所以不是錯誤。
         .help(app.isOutputDeviceOffline ? L("device.offline") : selectedName)
+    }
+}
+
+/// 路由按鈕的「分岔選路」圖形：上路亮、實心終點是選到的輸出；下路與空心圓圈 50% 透明是沒選的。
+/// 座標沿用設計稿的 18x18，依實際尺寸等比縮放。亮路跟著 foregroundStyle；
+/// 暗路固定用中性的 secondary，作用中變成 accentColor 時才不會跟著變藍。
+private struct RouteGlyph: View {
+    var body: some View {
+        Canvas { ctx, size in
+            ctx.scaleBy(x: size.width / 18, y: size.height / 18)
+            func line(_ width: CGFloat) -> StrokeStyle {
+                StrokeStyle(lineWidth: width, lineCap: .round, lineJoin: .round)
+            }
+            func dot(_ x: CGFloat, _ y: CGFloat, _ r: CGFloat) -> Path {
+                Path(ellipseIn: CGRect(x: x - r, y: y - r, width: r * 2, height: r * 2))
+            }
+
+            var top = Path()
+            top.move(to: CGPoint(x: 2.8, y: 9))
+            top.addLine(to: CGPoint(x: 5, y: 9))
+            top.addCurve(to: CGPoint(x: 10.6, y: 5), control1: CGPoint(x: 7, y: 9), control2: CGPoint(x: 7.4, y: 5))
+            top.addLine(to: CGPoint(x: 13, y: 5))
+
+            var bottom = Path()
+            bottom.move(to: CGPoint(x: 5, y: 9))
+            bottom.addCurve(to: CGPoint(x: 10.6, y: 13), control1: CGPoint(x: 7, y: 9), control2: CGPoint(x: 7.4, y: 13))
+            bottom.addLine(to: CGPoint(x: 13, y: 13))
+
+            var dim = ctx
+            dim.opacity = 0.5
+            dim.stroke(bottom, with: .color(.secondary), style: line(1.3))
+            dim.stroke(dot(14.9, 13, 1.5), with: .color(.secondary), lineWidth: 1.2)
+
+            ctx.stroke(top, with: .foreground, style: line(2.0))
+            ctx.fill(dot(2.8, 9, 1.7), with: .foreground)
+            ctx.fill(dot(14.9, 5, 1.8), with: .foreground)
+        }
     }
 }
 
