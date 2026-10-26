@@ -226,10 +226,24 @@ public final class RouterManager: ObservableObject {
         readSystemVolume()
         updateVolumeObserver()
         currentGroups = AudioProcesses.groups()
+        releaseOfflineDevices()
         reconcile()
         rebuildSnapshot()
         updatePlaybackObservers()
         writeDiagnosticSnapshot()
+    }
+
+    /// 指定的輸出裝置斷線（藍牙關掉、拔線）就改回「跟隨系統」，不等它回來。
+    /// ponytail: 裝置重新列舉時若短暫消失也會被清掉；真的遇到再加寬限時間。
+    private func releaseOfflineDevices() {
+        let online = Set(outputDevices.map(\.uid))
+        var changed = false
+        for (key, setting) in settings {
+            guard let uid = setting.outputDeviceUID, !online.contains(uid) else { continue }
+            settings[key]?.outputDeviceUID = nil
+            changed = true
+        }
+        if changed { saveSettings() }
     }
 
     private func readSystemVolume() {
