@@ -130,7 +130,8 @@ private struct SystemOutputSection: View {
                         PopUpEntry(
                             title: device.name,
                             subtitle: DeviceTransport.name(for: device),
-                            isSelected: device.uid == manager.defaultOutput?.uid
+                            isSelected: device.uid == manager.defaultOutput?.uid,
+                            battery: DeviceBattery.percent(for: device)
                         ) { manager.setSystemDefaultOutput(device) }
                     })
             } label: { outputButtonLabel }
@@ -194,6 +195,10 @@ private struct SystemOutputSection: View {
             }
 
             Spacer(minLength: 0)
+
+            if let battery = manager.defaultOutput.flatMap(DeviceBattery.percent(for:)) {
+                BatteryBadge(percent: battery)
+            }
 
             Image(systemName: "chevron.down")
                 .font(.system(size: 12, weight: .semibold))
@@ -433,6 +438,7 @@ private struct RouteMenu: View {
                 title: device.name,
                 subtitle: failed ? L("device.unavailable") : DeviceTransport.name(for: device),
                 isSelected: device.uid == selectedUID,
+                battery: DeviceBattery.percent(for: device),
                 isEnabled: !failed
             ) { manager.setOutputDevice(device.uid, forKey: app.key) })
         }
@@ -502,6 +508,7 @@ struct PopUpEntry {
     let title: String
     let subtitle: String
     let isSelected: Bool
+    var battery: Int? = nil
     var isEnabled = true
     let action: () -> Void
 }
@@ -548,6 +555,7 @@ private struct DeviceList: View {
                                 .lineLimit(1)
                         }
                         Spacer(minLength: 0)
+                        if let battery = entry.battery { BatteryBadge(percent: battery) }
                     }
                     .padding(.horizontal, 12)
                     .padding(.vertical, 5)
