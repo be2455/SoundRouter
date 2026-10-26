@@ -82,6 +82,12 @@ public struct AudioProcessGroup: Identifiable, Hashable, Sendable {
     public var isRecording: Bool { processes.contains(where: \.isRecording) }
     public var processObjectIDs: [AudioObjectID] { processes.map(\.id).sorted() }
 
+    /// 播放狀態以外的排序：一般 App 在系統程序前，名稱自然排序。
+    public static func listOrder(_ lhs: AudioProcessGroup, _ rhs: AudioProcessGroup) -> Bool {
+        if lhs.isSystemProcess != rhs.isSystemProcess { return !lhs.isSystemProcess }
+        return lhs.name.localizedStandardCompare(rhs.name) == .orderedAscending
+    }
+
     @MainActor
     public var icon: NSImage? {
         NSRunningApplication(processIdentifier: pid)?.icon
@@ -139,8 +145,7 @@ public enum AudioProcesses {
 
         return result.sorted { lhs, rhs in
             if lhs.isPlaying != rhs.isPlaying { return lhs.isPlaying }
-            if lhs.isSystemProcess != rhs.isSystemProcess { return !lhs.isSystemProcess }
-            return lhs.name.localizedStandardCompare(rhs.name) == .orderedAscending
+            return AudioProcessGroup.listOrder(lhs, rhs)
         }
     }
 

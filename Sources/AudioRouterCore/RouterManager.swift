@@ -53,7 +53,8 @@ public struct RoutedApp: Identifiable, Hashable, Sendable {
 
     public var id: String { key }
     public var name: String { group.name }
-    public var isPlaying: Bool { group.isPlaying }
+    /// 持續出聲超過寬限時間才算，過濾掉切換裝置時的瞬間誤報。原始狀態在 `group.isPlaying`。
+    public let isPlaying: Bool
     public var isSystemProcess: Bool { group.isSystemProcess }
 }
 
@@ -98,6 +99,10 @@ public final class RouterManager: ObservableObject {
     private var pendingStarts: Set<String> = []
     /// 最近一次掃描到的播放源。每輪 refresh 算一次，避免重複查詢 Core Audio。
     private var currentGroups: [AudioProcessGroup] = []
+    /// 每個播放源開始出聲的時間。建立或拆掉 tap 時 App 會被重新接線，HAL 會短暫回報它在輸出
+    /// （Spotify 暫停中也會），所以要連續出聲超過 `playingGrace` 才顯示成正在播放。
+    private var playingSince: [String: Date] = [:]
+    private static let playingGrace: TimeInterval = 2.5
 
     private var processObserver: Any?
     private var deviceObserver: Any?
@@ -484,6 +489,19 @@ public final class RouterManager: ObservableObject {
 
     private func rebuildSnapshot() {
         var result: [RoutedApp] = []
+        let now = Date()
+        let previous = playingSince
+        playingSince = [:]
+        for group in currentGroups where group.isPlaying {
+            playingSince[group.key] = previous[group.key] ?? now
+        }
+        // 有新開始出聲的，寬限時間過後再算一次；那時還在出聲才會顯示。
+        if playingSince.values.contains(now) {
+            Task { @MainActor [weak self] in
+                try? await Task.sleep(for: .seconds(Self.playingGrace + 0.1))
+                self?.rebuildSnapshot()
+            }
+        }
 
         for group in currentGroups {
             // 系統守護程序只在使用者主動要求時列出，但已經設定過的一律顯示，
@@ -500,11 +518,16 @@ public final class RouterManager: ObservableObject {
                 error: engineErrors[group.key],
                 isStarting: pendingStarts.contains(group.key),
                 isOutputDeviceOffline: isOutputDeviceOffline(setting),
-                failedDeviceUID: failedDeviceUID(forKey: group.key)
+                failedDeviceUID: failedDeviceUID(forKey: group.key),
+                isPlaying: playingSince[group.key].map { now.timeIntervalSince($0) >= Self.playingGrace } ?? false
             ))
         }
 
-        apps = result
+        // groups() 用原始播放狀態排序，瞬間誤報會讓 App 跳到最上面；這裡改用過濾後的值重排。
+        apps = result.sorted { lhs, rhs in
+            if lhs.isPlaying != rhs.isPlaying { return lhs.isPlaying }
+            return AudioProcessGroup.listOrder(lhs.group, rhs.group)
+        }
     }
 
     // MARK: - 持久化
