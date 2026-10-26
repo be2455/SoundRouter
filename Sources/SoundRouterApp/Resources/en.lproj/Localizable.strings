@@ -12,6 +12,7 @@
 "loginItem.needsApproval" = "Needs approval in System Settings";
 "loginItem.failed" = "Could not change the login item: %@";
 "systemProcesses.toggleHelp" = "Show/hide system processes (background services such as CoreSpeech and audiomxd)";
+"app.soundSettings" = "Sound Settings…";
 "app.quit" = "Quit";
 "route.auto" = "Auto";
 "device.offline" = "The selected output device is offline; using the system output until it comes back.";

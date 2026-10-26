@@ -19,6 +19,8 @@ final class StatusMenuDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate 
     private let chooser = DeviceChooser()
     private var statusItem: NSStatusItem!
     private var hosting: SelfSizingHostingView<AnyView>!
+    /// 讓面板裡的按鈕在開啟其他 App 前把選單收起來。
+    static weak var menu: NSMenu?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
@@ -28,6 +30,7 @@ final class StatusMenuDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate 
         let menu = NSMenu()
         menu.delegate = self
         menu.addItem(item)
+        Self.menu = menu
 
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         statusItem.button?.image = Self.statusIcon()

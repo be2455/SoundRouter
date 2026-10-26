@@ -96,6 +96,13 @@ struct RouterPanel: View {
             .foregroundStyle(manager.showsSystemProcesses ? Color.accentColor : Color.secondary)
             .help(L("systemProcesses.toggleHelp"))
 
+            IconButton(systemImage: "gearshape", label: L("app.soundSettings")) {
+                StatusMenuDelegate.menu?.cancelTracking()
+                NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.Sound-Settings.extension")!)
+            }
+            .foregroundStyle(.secondary)
+            .help(L("app.soundSettings"))
+
             IconButton(systemImage: "power", label: L("app.quit")) {
                 NSApplication.shared.terminate(nil)
             }
