@@ -356,16 +356,6 @@ private struct AppRow: View {
                 .lineLimit(1)
                 .truncationMode(.tail)
                 .help(app.isRunning ? app.name : "\(app.name)（\(L("row.notRunning"))）")
-            if app.processCount > 1 {
-                Text("\(app.processCount)")
-                    .font(.system(size: 11).monospacedDigit())
-                    .foregroundStyle(.secondary)
-                    .padding(.horizontal, 5)
-                    .frame(height: 16)
-                    .background(.quaternary, in: RoundedRectangle(cornerRadius: 8))
-                    .fixedSize()
-                    .help(String(format: L("row.helperProcesses"), app.processCount))
-            }
             if app.isPlaying {
                 PlayingBars()
                     .fixedSize()

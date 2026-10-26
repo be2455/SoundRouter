@@ -56,8 +56,6 @@ public struct RoutedApp: Identifiable, Hashable, Sendable {
     public var isRunning: Bool { group != nil }
     public var isPlaying: Bool { group?.isPlaying ?? false }
     public var isSystemProcess: Bool { group?.isSystemProcess ?? false }
-    /// 這個播放源底下有幾個發聲行程（瀏覽器之類會有獨立的音訊 helper）。
-    public var processCount: Int { group?.processes.count ?? 0 }
 }
 
 /// 統籌所有路由：追蹤行程與裝置變動、建立/銷毀引擎、存讀設定。
