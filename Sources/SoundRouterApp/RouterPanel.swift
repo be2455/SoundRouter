@@ -319,6 +319,21 @@ private struct AppRow: View {
 
     /// 固定寬度：空間不夠時名稱先省略，徽章與音量條保留。
     private var nameColumn: some View {
+        VStack(alignment: .leading, spacing: 1) {
+            nameLine
+            // 沒跟隨系統輸出時，名稱下方註明實際走哪個喇叭。
+            if let uid = app.settings.outputDeviceUID {
+                Text(manager.outputDevices.first { $0.uid == uid }?.name ?? uid)
+                    .font(.system(size: 10))
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+            }
+        }
+        .frame(width: 104, alignment: .leading)
+    }
+
+    private var nameLine: some View {
         HStack(spacing: 5) {
             Text(app.name)
                 .font(.system(size: 13))
@@ -341,7 +356,6 @@ private struct AppRow: View {
                     .fixedSize()
             }
         }
-        .frame(width: 104, alignment: .leading)
     }
 
     private var nameStyle: HierarchicalShapeStyle {
