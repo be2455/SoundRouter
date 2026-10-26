@@ -144,10 +144,14 @@ public final class RouterManager: ObservableObject {
         let clamped = max(0, min(1, volume))
         // 只調音量時走即時路徑，不必重建整條鏈。
         engines[key]?.volume = clamped
+        // 拉到 0 或從 0 拉上來都不在這裡切換靜音，由介面在放開滑桿後處理，
+        // 免得拖動途中整列就在群組間跳來跳去。
         mutate(key) { $0.volume = clamped }
     }
 
     public func setMuted(_ muted: Bool, forKey key: String) {
+        // 拉到 0 而靜音的，取消靜音時回到 100%，不然取消了還是沒聲音。
+        if !muted, settings[key]?.volume == 0 { setVolume(1, forKey: key) }
         engines[key]?.isMuted = muted
         mutate(key) { $0.muted = muted }
     }

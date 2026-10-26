@@ -280,7 +280,10 @@ private struct AppRow: View {
                 label: String(format: L("row.volume"), app.name)
             ) {
                 manager.setVolume($0, forKey: app.key)
-                if isMuted { manager.setMuted(false, forKey: app.key) }
+            } onRelease: {
+                // 放開時停在 0 就靜音，靜音中拉上來就取消靜音。
+                if app.settings.volume == 0, !isMuted { setMutedSoon(true) }
+                if app.settings.volume > 0, isMuted { setMutedSoon(false) }
             }
 
             valueText
@@ -295,7 +298,7 @@ private struct AppRow: View {
                 // 聲波格數跟著音量走，0% 時只剩喇叭本體。
                 variableValue: isMuted ? nil : Double(app.settings.volume)
             ) {
-                manager.setMuted(!isMuted, forKey: app.key)
+                if isMuted { setMutedSoon(false) } else { manager.setMuted(true, forKey: app.key) }
             }
             .foregroundStyle(isMuted ? Color.red : Color.secondary)
         }
@@ -314,6 +317,17 @@ private struct AppRow: View {
             if !app.isRunning {
                 Button(L("route.forget")) { manager.forget(key: app.key) }
             }
+        }
+    }
+
+    /// 稍等一下再切換靜音、換群組，讓人先看到滑桿停在哪。
+    private func setMutedSoon(_ muted: Bool) {
+        let key = app.key
+        Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(150))
+            // 這段時間音量又被改過（例如要靜音卻又拉上來）就作罷。
+            if muted, manager.apps.first(where: { $0.key == key })?.settings.volume != 0 { return }
+            withAnimation(.easeInOut(duration: 0.25)) { manager.setMuted(muted, forKey: key) }
         }
     }
 

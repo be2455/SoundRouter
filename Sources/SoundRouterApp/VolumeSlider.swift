@@ -7,15 +7,25 @@ import SwiftUI
 struct VolumeSlider: View {
     let value: Float
     /// 靜音時滑桿畫在 0、填色改灰；`value` 本身保留，取消靜音回到原本音量。
-    /// 靜音中拖動滑桿由呼叫端負責順便取消靜音。
+    /// 靜音中拖動時滑桿照常跟著走；要不要取消靜音由呼叫端決定。
     var dimmed = false
     let label: String
     let onChange: (Float) -> Void
+    /// 放開滑鈕時呼叫。
+    var onRelease: () -> Void = {}
+    @State private var isEditing = false
 
     var body: some View {
-        Slider(value: Binding(get: { dimmed ? 0 : value }, set: { onChange($0) }), in: 0...1)
-            .controlSize(.small)
-            .tint(dimmed ? Color.gray : Color.accentColor)
-            .accessibilityLabel(label)
+        Slider(
+            value: Binding(get: { dimmed && !isEditing ? 0 : value }, set: { onChange($0) }),
+            in: 0...1,
+            onEditingChanged: {
+                isEditing = $0
+                if !$0 { onRelease() }
+            }
+        )
+        .controlSize(.small)
+        .tint(dimmed ? Color.gray : Color.accentColor)
+        .accessibilityLabel(label)
     }
 }
