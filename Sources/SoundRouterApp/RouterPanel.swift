@@ -34,10 +34,7 @@ struct RouterPanel: View {
     /// 不會把面板撐出螢幕。
     private var content: some View {
         let groups = groups
-        // 每列 46pt，每個群組標題約 32pt，系統輸出區約 150pt，加上展開的清單（每項約 42pt）。
-        let estimated = 150 + CGFloat(manager.apps.count) * 46 + CGFloat(groups.count) * 32 + 8
-            + CGFloat(chooser.entries.count) * 42
-        return FittingList(estimatedHeight: estimated, reservedHeight: 280) {
+        return FittingList(reservedHeight: 280) {
             VStack(spacing: 0) {
                 SystemOutputSection()
                 Divider().padding(.horizontal, 16)
