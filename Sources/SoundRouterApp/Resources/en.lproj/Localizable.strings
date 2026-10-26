@@ -33,6 +33,7 @@
 "row.mute" = "Mute %@";
 "row.unmute" = "Unmute %@";
 "row.volume" = "%@ volume";
+"row.outputSilent" = "Output muted";
 "route.menuTitle" = "Output for %@";
 "route.buttonLabel" = "%1$@ output: %2$@";
 "device.unavailable" = "Unavailable";

@@ -33,6 +33,7 @@
 "row.mute" = "%@ 靜音";
 "row.unmute" = "%@ 取消靜音";
 "row.volume" = "%@ 音量";
+"row.outputSilent" = "輸出已靜音";
 "route.menuTitle" = "%@ 的輸出裝置";
 "route.buttonLabel" = "%1$@ 輸出裝置：%2$@";
 "device.unavailable" = "無法使用";

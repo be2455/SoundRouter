@@ -22,11 +22,12 @@ struct RouterPanel: View {
     /// （播放中在前、一般 App 在系統程序前、名稱自然排序），
     /// 這裡只做 filter，群組內就沿用那個順序。
     private var groups: [(title: String, apps: [RoutedApp])] {
-        let live = manager.apps.filter { !$0.settings.muted }
+        let silent = { (app: RoutedApp) in app.settings.muted || manager.isOutputSilent(for: app) }
+        let live = manager.apps.filter { !silent($0) }
         return [
             (L("group.playing"), live.filter(\.isPlaying)),
             (L("group.other"), live.filter { !$0.isPlaying }),
-            (L("group.muted"), manager.apps.filter(\.settings.muted)),
+            (L("group.muted"), manager.apps.filter(silent)),
         ].filter { !$0.apps.isEmpty }
     }
 
@@ -266,8 +267,11 @@ private struct AppRow: View {
     @State private var isAdjusting = false
 
     private var isMuted: Bool { app.settings.muted }
+    private var isOutputSilent: Bool { manager.isOutputSilent(for: app) }
     /// 拖到 0 還沒放開（尚未真的靜音）時，數值與喇叭圖示先顯示成靜音。
-    private var showsMuted: Bool { (isMuted && !isAdjusting) || app.settings.volume == 0 }
+    private var showsMuted: Bool {
+        (isMuted && !isAdjusting) || app.settings.volume == 0 || isOutputSilent
+    }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -281,14 +285,15 @@ private struct AppRow: View {
     private var row: some View {
         HStack(spacing: 10) {
             icon
-                .opacity(isMuted ? 0.45 : 1)
+                .opacity(isMuted || isOutputSilent ? 0.45 : 1)
 
             nameColumn
 
             VolumeSlider(
                 value: app.settings.volume,
                 // 放開後等取消靜音的那 0.15 秒也算調整中，滑桿才不會先跳回 0。
-                dimmed: isMuted && !isAdjusting,
+                // 輸出裝置沒聲音時也一樣歸 0、變灰。
+                dimmed: (isMuted && !isAdjusting) || isOutputSilent,
                 label: String(format: L("row.volume"), app.name)
             ) {
                 if isMuted { isAdjusting = true }
@@ -304,6 +309,9 @@ private struct AppRow: View {
                 }
             }
 
+            // 輸出裝置沒聲音時調了也沒用，乾脆不給調。
+            .disabled(isOutputSilent)
+
             valueText
                 .frame(width: 32, alignment: .trailing)
 
@@ -318,6 +326,7 @@ private struct AppRow: View {
             ) {
                 setMutedSoon(!isMuted)
             }
+            .disabled(isOutputSilent)
             .foregroundStyle(.secondary)
         }
         .padding(.horizontal, 12)
@@ -352,16 +361,24 @@ private struct AppRow: View {
     private var nameColumn: some View {
         VStack(alignment: .leading, spacing: 1) {
             nameLine
-            // 沒跟隨系統輸出時，名稱下方註明實際走哪個喇叭。
-            if let uid = app.settings.outputDeviceUID {
-                Text(manager.outputDevices.first { $0.uid == uid }?.name ?? uid)
+            if let subtitle {
+                Text(subtitle)
                     .font(.system(size: 10))
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
                     .truncationMode(.tail)
+                    .help(subtitle)
             }
         }
         .frame(width: 104, alignment: .leading)
+    }
+
+    /// 裝置沒聲音時註明原因；沒跟隨系統輸出時，名稱下方註明實際走哪個喇叭。
+    private var subtitle: String? {
+        if isOutputSilent { return L("row.outputSilent") }
+        return app.settings.outputDeviceUID.map { uid in
+            manager.outputDevices.first { $0.uid == uid }?.name ?? uid
+        }
     }
 
     private var nameLine: some View {
@@ -380,7 +397,7 @@ private struct AppRow: View {
     }
 
     private var nameStyle: HierarchicalShapeStyle {
-        isMuted ? .tertiary : .primary
+        isMuted || isOutputSilent ? .tertiary : .primary
     }
 
     /// 一律顯示百分比（含 100%），0% 或靜音時改成「靜音」。
@@ -414,6 +431,14 @@ private struct AppRow: View {
                 .foregroundStyle(.tertiary)
                 .accessibilityHidden(true)
         }
+    }
+}
+
+extension RouterManager {
+    /// 實際輸出的裝置音量為 0 或靜音時，這個 App 再怎麼調也沒聲音。
+    func isOutputSilent(for app: RoutedApp) -> Bool {
+        guard let uid = app.settings.outputDeviceUID ?? defaultOutput?.uid else { return false }
+        return silentOutputUIDs.contains(uid)
     }
 }
 

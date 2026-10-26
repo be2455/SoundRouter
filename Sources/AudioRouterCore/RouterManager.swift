@@ -72,6 +72,8 @@ public final class RouterManager: ObservableObject {
     @Published public private(set) var systemVolume: Float?
     /// 系統輸出裝置是否靜音。靜音不會改音量值，所以要另外讀。
     @Published public private(set) var systemMuted = false
+    /// 音量為 0 或靜音的輸出裝置。指向這些裝置的 App 怎麼調都不會出聲，UI 據此顯示成靜音。
+    @Published public private(set) var silentOutputUIDs: Set<String> = []
 
     /// 是否把系統守護程序（CoreSpeech、audiomxd…）也列出來。
     /// 預設關閉：機器上通常有三十幾個這種行程，全開會把真正的 App 淹掉。
@@ -99,9 +101,9 @@ public final class RouterManager: ObservableObject {
 
     private var processObserver: Any?
     private var deviceObserver: Any?
-    /// 系統輸出裝置的音量／靜音監聽，切換輸出時跟著換裝置。
-    private var volumeObserver: Any?
-    private var volumeObserverDeviceID: AudioObjectID?
+    /// 每個輸出裝置的音量／靜音監聽，裝置清單變動時重掛。
+    private var volumeObservers: [Any] = []
+    private var volumeObserverDeviceIDs: [AudioObjectID] = []
     /// 播放狀態的監聽器，只掛在清單上會顯示的 App。
     private var playbackObserver: AudioProcesses.PlaybackObserver?
     /// 目前監看中的行程，用來判斷是否需要重掛。
@@ -249,13 +251,17 @@ public final class RouterManager: ObservableObject {
     private func readSystemVolume() {
         systemVolume = defaultOutput.flatMap(AudioDevices.volume(of:))
         systemMuted = defaultOutput.flatMap(AudioDevices.isMuted) ?? false
+        silentOutputUIDs = Set(outputDevices.filter {
+            AudioDevices.volume(of: $0) == 0 || AudioDevices.isMuted($0) == true
+        }.map(\.uid))
     }
 
     /// 音量變動只重讀音量，不走整個 refresh——拖音量鍵時通知很密。
     private func updateVolumeObserver() {
-        guard defaultOutput?.id != volumeObserverDeviceID else { return }
-        volumeObserverDeviceID = defaultOutput?.id
-        volumeObserver = defaultOutput.map {
+        let ids = outputDevices.map(\.id)
+        guard ids != volumeObserverDeviceIDs else { return }
+        volumeObserverDeviceIDs = ids
+        volumeObservers = outputDevices.map {
             AudioDevices.observeVolume(of: $0, queue: .main) { [weak self] in
                 Task { @MainActor in self?.readSystemVolume() }
             }
