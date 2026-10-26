@@ -30,9 +30,51 @@ final class StatusMenuDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate 
         menu.addItem(item)
 
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
-        statusItem.button?.image = NSImage(
-            systemSymbolName: "slider.horizontal.below.rectangle", accessibilityDescription: "SoundRouter")
+        statusItem.button?.image = Self.statusIcon()
         statusItem.menu = menu
+    }
+
+    /// 實心喇叭 + 分成兩路的分岔線。用 drawing handler 繪製，每種螢幕倍率都會重畫；
+    /// template image 讓系統依選單列深淺上色，所以只畫黑色。
+    private static func statusIcon() -> NSImage {
+        // flipped：原點在左上，座標可直接對照 18x18 的 SVG 設計稿。
+        let image = NSImage(size: NSSize(width: 18, height: 18), flipped: true) { _ in
+            NSColor.black.set()
+
+            let speaker = NSBezierPath()
+            speaker.move(to: NSPoint(x: 1.6, y: 6.9))
+            speaker.line(to: NSPoint(x: 4.2, y: 6.9))
+            speaker.line(to: NSPoint(x: 8, y: 3.8))
+            speaker.line(to: NSPoint(x: 8, y: 14.2))
+            speaker.line(to: NSPoint(x: 4.2, y: 11.1))
+            speaker.line(to: NSPoint(x: 1.6, y: 11.1))
+            speaker.close()
+            speaker.lineWidth = 1.2
+            speaker.lineJoinStyle = .round
+            speaker.fill()
+            speaker.stroke()
+
+            let branches = NSBezierPath()
+            branches.move(to: NSPoint(x: 10.4, y: 9))
+            branches.line(to: NSPoint(x: 11.4, y: 9))
+            branches.curve(to: NSPoint(x: 14.8, y: 5),
+                           controlPoint1: NSPoint(x: 13.1, y: 9), controlPoint2: NSPoint(x: 13.1, y: 5))
+            branches.move(to: NSPoint(x: 11.4, y: 9))
+            branches.curve(to: NSPoint(x: 14.8, y: 13),
+                           controlPoint1: NSPoint(x: 13.1, y: 9), controlPoint2: NSPoint(x: 13.1, y: 13))
+            branches.lineWidth = 1.9
+            branches.lineCapStyle = .round
+            branches.lineJoinStyle = .round
+            branches.stroke()
+
+            for y in [5.0, 13.0] {
+                NSBezierPath(ovalIn: NSRect(x: 15.9 - 1.4, y: y - 1.4, width: 2.8, height: 2.8)).fill()
+            }
+            return true
+        }
+        image.isTemplate = true
+        image.accessibilityDescription = "SoundRouter"
+        return image
     }
 
     func menuWillOpen(_ menu: NSMenu) {
