@@ -4,10 +4,8 @@
 /* Each row */
 "route.followSystem" = "Follow System Output";
 "list.empty" = "No playback sources found";
-"row.notRunning" = "Not running";
 "row.playing" = "Playing";
 "route.reset" = "Reset this app";
-"route.forget" = "Forget this setting";
 
 /* Footer */
 "loginItem.launchAtLogin" = "Launch at login";

@@ -19,7 +19,7 @@ struct RouterPanel: View {
     }
 
     /// 由現有欄位算出分組，空的群組不顯示。`manager.apps` 本身已經排好序
-    /// （播放中在前、一般 App 在系統程序前、名稱自然排序、未執行的在最後），
+    /// （播放中在前、一般 App 在系統程序前、名稱自然排序），
     /// 這裡只做 filter，群組內就沿用那個順序。
     private var groups: [(title: String, apps: [RoutedApp])] {
         let live = manager.apps.filter { !$0.settings.muted }
@@ -314,9 +314,6 @@ private struct AppRow: View {
             if !app.settings.isPassthrough {
                 Button(L("route.reset")) { manager.reset(key: app.key) }
             }
-            if !app.isRunning {
-                Button(L("route.forget")) { manager.forget(key: app.key) }
-            }
         }
     }
 
@@ -355,7 +352,7 @@ private struct AppRow: View {
                 .foregroundStyle(nameStyle)
                 .lineLimit(1)
                 .truncationMode(.tail)
-                .help(app.isRunning ? app.name : "\(app.name)（\(L("row.notRunning"))）")
+                .help(app.name)
             if app.isPlaying {
                 PlayingBars()
                     .fixedSize()
@@ -364,8 +361,7 @@ private struct AppRow: View {
     }
 
     private var nameStyle: HierarchicalShapeStyle {
-        if isMuted { return .tertiary }
-        return app.isRunning ? .primary : .secondary
+        isMuted ? .tertiary : .primary
     }
 
     /// 一律顯示百分比（含 100%），靜音時改成紅字「靜音」。
@@ -387,10 +383,7 @@ private struct AppRow: View {
 
     @ViewBuilder
     private var icon: some View {
-        // 沒在跑的 App 沒有行程可問，改用記住的 bundle ID 找 App 本體的圖示。
-        if let image = app.group?.icon
-            ?? NSWorkspace.shared.urlForApplication(withBundleIdentifier: app.key)
-                .map({ NSWorkspace.shared.icon(forFile: $0.path) }) {
+        if let image = app.group.icon {
             Image(nsImage: image)
                 .resizable()
                 .frame(width: 24, height: 24)

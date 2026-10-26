@@ -36,8 +36,8 @@ public struct RouteSettings: Codable, Hashable, Sendable {
 /// 一個播放源在 UI 上的完整狀態。
 public struct RoutedApp: Identifiable, Hashable, Sendable {
     public let key: String
-    /// 目前正在跑的行程群組；App 沒在跑時為 nil（設定仍會保留）。
-    public let group: AudioProcessGroup?
+    /// 目前正在跑的行程群組。App 沒在跑時不會出現在清單上，設定仍會保留。
+    public let group: AudioProcessGroup
     public var settings: RouteSettings
     /// 這條路由目前是否真的有 tap 在跑。
     public let isActive: Bool
@@ -52,10 +52,9 @@ public struct RoutedApp: Identifiable, Hashable, Sendable {
     public let failedDeviceUID: String?
 
     public var id: String { key }
-    public var name: String { group?.name ?? settings.displayName }
-    public var isRunning: Bool { group != nil }
-    public var isPlaying: Bool { group?.isPlaying ?? false }
-    public var isSystemProcess: Bool { group?.isSystemProcess ?? false }
+    public var name: String { group.name }
+    public var isPlaying: Bool { group.isPlaying }
+    public var isSystemProcess: Bool { group.isSystemProcess }
 }
 
 /// 統籌所有路由：追蹤行程與裝置變動、建立/銷毀引擎、存讀設定。
@@ -168,14 +167,6 @@ public final class RouterManager: ObservableObject {
         settings[key]?.balance = 0
         saveSettings()
         reconcile()
-        rebuildSnapshot()
-    }
-
-    /// 移除一筆已記住但目前沒在跑的設定。
-    public func forget(key: String) {
-        settings.removeValue(forKey: key)
-        teardownEngine(forKey: key)
-        saveSettings()
         rebuildSnapshot()
     }
 
@@ -472,7 +463,6 @@ public final class RouterManager: ObservableObject {
     }
 
     private func rebuildSnapshot() {
-        var seen = Set<String>()
         var result: [RoutedApp] = []
 
         for group in currentGroups {
@@ -482,7 +472,6 @@ public final class RouterManager: ObservableObject {
             let hasSettings = setting.map { !$0.isPassthrough } ?? false
             guard showsSystemProcesses || !group.isSystemProcess || hasSettings else { continue }
 
-            seen.insert(group.key)
             result.append(RoutedApp(
                 key: group.key,
                 group: group,
@@ -492,26 +481,6 @@ public final class RouterManager: ObservableObject {
                 isStarting: pendingStarts.contains(group.key),
                 isOutputDeviceOffline: isOutputDeviceOffline(setting),
                 failedDeviceUID: failedDeviceUID(forKey: group.key)
-            ))
-        }
-
-        // 有記住設定但目前沒在跑的 App，列在後面。依名稱排序，否則 dictionary
-        // 的走訪順序不固定，每次刷新都會跳動。
-        let remembered = settings
-            .filter { !seen.contains($0.key) && !$0.value.isPassthrough }
-            // pid 鍵的行程結束了就不會再回來，列出來只是一筆刪不完的殘骸。
-            .filter { AudioProcesses.isPersistentKey($0.key) }
-            .sorted { $0.value.displayName.localizedStandardCompare($1.value.displayName) == .orderedAscending }
-        for (key, setting) in remembered {
-            result.append(RoutedApp(
-                key: key,
-                group: nil,
-                settings: setting,
-                isActive: false,
-                error: engineErrors[key],
-                isStarting: pendingStarts.contains(key),
-                isOutputDeviceOffline: isOutputDeviceOffline(setting),
-                failedDeviceUID: failedDeviceUID(forKey: key)
             ))
         }
 

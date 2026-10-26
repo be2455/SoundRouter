@@ -4,10 +4,8 @@
 /* 每一列 */
 "route.followSystem" = "跟隨系統輸出";
 "list.empty" = "找不到任何播放源";
-"row.notRunning" = "未執行";
 "row.playing" = "正在播放";
 "route.reset" = "重設此 App";
-"route.forget" = "忘記此設定";
 
 /* footer */
 "loginItem.launchAtLogin" = "開機時自動啟動";
