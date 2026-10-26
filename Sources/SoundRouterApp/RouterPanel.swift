@@ -143,22 +143,16 @@ private struct SystemOutputSection: View {
             if let volume = manager.systemVolume {
                 let muted = manager.systemMuted
                 HStack(spacing: 10) {
-                    IconButton(
-                        systemImage: muted ? "speaker.slash.fill" : "speaker.fill",
-                        label: L(muted ? "systemVolume.unmute" : "systemVolume.mute"),
-                        isOn: muted
-                    ) {
-                        manager.setSystemMuted(!muted)
-                    }
-                    .foregroundStyle(.secondary)
-                    VolumeSlider(value: volume, dimmed: muted, label: L("systemVolume.label")) {
-                        manager.setSystemVolume($0)
-                        if muted { manager.setSystemMuted(false) }
-                    }
-                    Image(systemName: "speaker.wave.3.fill")
-                        .font(.system(size: 13))
-                        .frame(width: 18)
-                        .accessibilityHidden(true)
+                    SystemVolumeSlider(
+                        value: volume,
+                        muted: muted,
+                        label: L("systemVolume.label"),
+                        onChange: {
+                            manager.setSystemVolume($0)
+                            if muted { manager.setSystemMuted(false) }
+                        },
+                        onToggleMute: { manager.setSystemMuted(!muted) }
+                    )
                     // 這裡一律顯示，即使是 100%；靜音時改顯示「靜音」。
                     Group {
                         if muted {
