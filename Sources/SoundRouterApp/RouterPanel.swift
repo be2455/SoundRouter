@@ -111,7 +111,7 @@ struct RouterPanel: View {
         }
         .padding(.leading, 16)
         .padding(.trailing, 12)
-        .frame(height: 48)
+        .padding(.top, 4)
         .overlay(alignment: .top) { Divider() }
         .onAppear { loginItem.refresh() }
     }
@@ -176,7 +176,8 @@ private struct SystemOutputSection: View {
                 .padding(.top, 12)
             }
         }
-        .padding(.top, 16)
+        // NSMenu 本身上下會再加約 5pt，這裡少留一點。
+        .padding(.top, 7)
         .padding(.horizontal, 16)
         .padding(.bottom, 12)
     }
