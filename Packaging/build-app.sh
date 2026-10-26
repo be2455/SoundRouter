@@ -41,6 +41,7 @@ mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 
 cp "$BIN_DIR/SoundRouterApp" "$APP/Contents/MacOS/SoundRouterApp"
 cp Packaging/Info.plist "$APP/Contents/Info.plist"
+cp Packaging/AppIcon.icns "$APP/Contents/Resources/AppIcon.icns"
 
 # SwiftPM 把本地化字串放進執行檔旁邊的 .bundle。這個 .app 是手工組裝的，
 # 不搬過去的話 Bundle.module 找不到資源，介面會退回顯示 key 本身。
