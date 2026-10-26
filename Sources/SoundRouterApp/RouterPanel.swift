@@ -257,6 +257,8 @@ private struct AppRow: View {
     @State private var isHovered = false
 
     private var isMuted: Bool { app.settings.muted }
+    /// 拖到 0 還沒放開（尚未真的靜音）時，數值與喇叭圖示先顯示成靜音。
+    private var showsMuted: Bool { isMuted || app.settings.volume == 0 }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -292,11 +294,11 @@ private struct AppRow: View {
             RouteMenu(app: app)
 
             IconButton(
-                systemImage: isMuted ? "speaker.slash.fill" : "speaker.wave.3.fill",
+                systemImage: showsMuted ? "speaker.slash.fill" : "speaker.wave.3.fill",
                 label: String(format: L(isMuted ? "row.unmute" : "row.mute"), app.name),
                 isOn: isMuted,
-                // 聲波格數跟著音量走，0% 時只剩喇叭本體。
-                variableValue: isMuted ? nil : Double(app.settings.volume)
+                // 聲波格數跟著音量走，0% 或靜音時改成靜音圖示。
+                variableValue: showsMuted ? nil : Double(app.settings.volume)
             ) {
                 setMutedSoon(!isMuted)
             }
@@ -364,16 +366,16 @@ private struct AppRow: View {
         isMuted ? .tertiary : .primary
     }
 
-    /// 一律顯示百分比（含 100%），靜音時改成紅字「靜音」。
+    /// 一律顯示百分比（含 100%），0% 時改成「靜音」，真的靜音才用紅字。
     ///
     /// 每個分支都要有視圖：空的分支不會產生視圖，外面的 `.frame(width: 32)`
     /// 跟著消失，HStack 少掉這一欄和一段間距，滑桿就會變長、整列往右擠。
     @ViewBuilder
     private var valueText: some View {
-        if isMuted {
+        if showsMuted {
             Text(L("row.muted"))
                 .font(.system(size: 11))
-                .foregroundStyle(.red)
+                .foregroundStyle(isMuted ? Color.red : Color.secondary)
         } else {
             Text("\(Int((app.settings.volume * 100).rounded()))%")
                 .font(.system(size: 11).monospacedDigit())
