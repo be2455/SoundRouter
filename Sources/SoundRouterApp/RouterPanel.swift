@@ -387,7 +387,10 @@ private struct AppRow: View {
 
     @ViewBuilder
     private var icon: some View {
-        if let image = app.group?.icon {
+        // 沒在跑的 App 沒有行程可問，改用記住的 bundle ID 找 App 本體的圖示。
+        if let image = app.group?.icon
+            ?? NSWorkspace.shared.urlForApplication(withBundleIdentifier: app.key)
+                .map({ NSWorkspace.shared.icon(forFile: $0.path) }) {
             Image(nsImage: image)
                 .resizable()
                 .frame(width: 24, height: 24)
