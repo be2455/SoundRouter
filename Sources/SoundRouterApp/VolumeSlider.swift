@@ -6,13 +6,14 @@ import SwiftUI
 /// 外觀只換填色，軌道與滑鈕維持原生，鍵盤操作與焦點環才是系統的。
 struct VolumeSlider: View {
     let value: Float
-    /// 靜音時填色改灰，但值保留——取消靜音要回到原本的音量。
+    /// 靜音時滑桿畫在 0、填色改灰；`value` 本身保留，取消靜音回到原本音量。
+    /// 靜音中拖動滑桿由呼叫端負責順便取消靜音。
     var dimmed = false
     let label: String
     let onChange: (Float) -> Void
 
     var body: some View {
-        Slider(value: Binding(get: { value }, set: { onChange($0) }), in: 0...1)
+        Slider(value: Binding(get: { dimmed ? 0 : value }, set: { onChange($0) }), in: 0...1)
             .controlSize(.small)
             .tint(dimmed ? Color.gray : Color.accentColor)
             .accessibilityLabel(label)

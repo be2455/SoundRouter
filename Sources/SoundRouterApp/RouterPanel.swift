@@ -156,6 +156,7 @@ private struct SystemOutputSection: View {
                     .foregroundStyle(muted ? Color.red : Color.secondary)
                     VolumeSlider(value: volume, dimmed: muted, label: L("systemVolume.label")) {
                         manager.setSystemVolume($0)
+                        if muted { manager.setSystemMuted(false) }
                     }
                     Image(systemName: "speaker.wave.3.fill")
                         .font(.system(size: 13))
@@ -282,6 +283,7 @@ private struct AppRow: View {
                 label: String(format: L("row.volume"), app.name)
             ) {
                 manager.setVolume($0, forKey: app.key)
+                if isMuted { manager.setMuted(false, forKey: app.key) }
             }
 
             valueText
