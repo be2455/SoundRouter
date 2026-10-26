@@ -150,7 +150,7 @@ private struct SystemOutputSection: View {
                     ) {
                         manager.setSystemMuted(!muted)
                     }
-                    .foregroundStyle(muted ? Color.red : Color.secondary)
+                    .foregroundStyle(.secondary)
                     VolumeSlider(value: volume, dimmed: muted, label: L("systemVolume.label")) {
                         manager.setSystemVolume($0)
                         if muted { manager.setSystemMuted(false) }
@@ -159,10 +159,10 @@ private struct SystemOutputSection: View {
                         .font(.system(size: 13))
                         .frame(width: 18)
                         .accessibilityHidden(true)
-                    // 這裡一律顯示，即使是 100%；靜音時跟 App 列一樣改成紅字。
+                    // 這裡一律顯示，即使是 100%；靜音時改顯示「靜音」。
                     Group {
                         if muted {
-                            Text(L("row.muted")).foregroundStyle(.red)
+                            Text(L("row.muted")).foregroundStyle(.secondary)
                         } else {
                             Text("\(Int((volume * 100).rounded()))%")
                         }
@@ -255,10 +255,12 @@ private struct AppRow: View {
     @EnvironmentObject private var manager: RouterManager
     @EnvironmentObject private var chooser: DeviceChooser
     @State private var isHovered = false
+    /// 靜音中拖動滑桿：數值與喇叭圖示先跟著音量走，等真的取消靜音再收起。
+    @State private var isAdjusting = false
 
     private var isMuted: Bool { app.settings.muted }
     /// 拖到 0 還沒放開（尚未真的靜音）時，數值與喇叭圖示先顯示成靜音。
-    private var showsMuted: Bool { isMuted || app.settings.volume == 0 }
+    private var showsMuted: Bool { (isMuted && !isAdjusting) || app.settings.volume == 0 }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -278,14 +280,21 @@ private struct AppRow: View {
 
             VolumeSlider(
                 value: app.settings.volume,
-                dimmed: isMuted,
+                // 放開後等取消靜音的那 0.15 秒也算調整中，滑桿才不會先跳回 0。
+                dimmed: isMuted && !isAdjusting,
                 label: String(format: L("row.volume"), app.name)
             ) {
+                if isMuted { isAdjusting = true }
                 manager.setVolume($0, forKey: app.key)
             } onRelease: {
                 // 放開時停在 0 就靜音，靜音中拉上來就取消靜音。
                 if app.settings.volume == 0, !isMuted { setMutedSoon(true) }
-                if app.settings.volume > 0, isMuted { setMutedSoon(false) }
+                if app.settings.volume > 0, isMuted {
+                    // isAdjusting 留到真的取消靜音（onChange 收起），中間不會閃回「靜音」。
+                    setMutedSoon(false)
+                } else {
+                    isAdjusting = false
+                }
             }
 
             valueText
@@ -302,7 +311,7 @@ private struct AppRow: View {
             ) {
                 setMutedSoon(!isMuted)
             }
-            .foregroundStyle(isMuted ? Color.red : Color.secondary)
+            .foregroundStyle(.secondary)
         }
         .padding(.horizontal, 12)
         .frame(height: 46)
@@ -312,6 +321,7 @@ private struct AppRow: View {
         )
         .padding(.horizontal, 4)
         .onHover { isHovered = $0 }
+        .onChange(of: isMuted) { isAdjusting = false }
         .contextMenu {
             if !app.settings.isPassthrough {
                 Button(L("route.reset")) { manager.reset(key: app.key) }
@@ -366,7 +376,7 @@ private struct AppRow: View {
         isMuted ? .tertiary : .primary
     }
 
-    /// 一律顯示百分比（含 100%），0% 時改成「靜音」，真的靜音才用紅字。
+    /// 一律顯示百分比（含 100%），0% 或靜音時改成「靜音」。
     ///
     /// 每個分支都要有視圖：空的分支不會產生視圖，外面的 `.frame(width: 32)`
     /// 跟著消失，HStack 少掉這一欄和一段間距，滑桿就會變長、整列往右擠。
@@ -375,7 +385,7 @@ private struct AppRow: View {
         if showsMuted {
             Text(L("row.muted"))
                 .font(.system(size: 11))
-                .foregroundStyle(isMuted ? Color.red : Color.secondary)
+                .foregroundStyle(.secondary)
         } else {
             Text("\(Int((app.settings.volume * 100).rounded()))%")
                 .font(.system(size: 11).monospacedDigit())
